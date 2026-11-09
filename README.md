@@ -1,0 +1,824 @@
+[index.html](https://github.com/user-attachments/files/34595492/index.html)
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jogoteca</title>
+<meta name="description" content="Jogoteca: descubra e jogue jogos web direto no navegador.">
+<meta name="theme-color" content="#0a0e1f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   JOGOTECA — loja de jogos web (mobile-first, tema escuro)
+   Cores e fontes ficam todas aqui em cima: mude aqui e o site
+   inteiro acompanha.
+   ========================================================= */
+:root {
+  --fundo: #0a0e1f;          /* azul quase preto */
+  --fundo-2: #11173a;        /* gradiente do topo */
+  --painel: #161d3f;         /* cards e caixas */
+  --painel-2: #1e2752;       /* hover / chips */
+  --linha: #2a3468;
+  --texto: #eef1ff;
+  --texto-suave: #9aa5d6;
+  --ciano: #00e5ff;          /* destaque principal */
+  --rosa: #ff2e88;           /* destaque secundário */
+  --roxo: #8b5cff;
+  --verde: #39ff88;          /* botão Jogar */
+  --verde-escuro: #12c262;
+  --amarelo: #ffd23f;        /* avaliações */
+  --sobre-verde: #062414;
+
+  --f-titulo: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --f-texto: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --raio: 12px;
+  --raio-sm: 8px;
+  --tabbar: 64px;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--f-texto); font-size: 15px; line-height: 1.5;
+  color: var(--texto);
+  background: radial-gradient(1200px 600px at 80% -10%, rgba(139, 92, 255, .25), transparent 60%),
+              radial-gradient(900px 500px at -10% 10%, rgba(0, 229, 255, .12), transparent 60%),
+              var(--fundo);
+  background-attachment: fixed;
+  min-height: 100vh;
+  padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px));
+}
+h1, h2, h3 { margin: 0; font-family: var(--f-titulo); line-height: 1.15; letter-spacing: .01em; text-wrap: balance; }
+p { margin: 0; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+svg { display: block; }
+
+.wrap {
+  width: 100%; max-width: 1180px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main.wrap { padding-block: 16px 40px; outline: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+:focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; border-radius: 6px; }
+
+/* ---------- Topo ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: linear-gradient(180deg, rgba(10, 14, 31, .97), rgba(17, 23, 58, .92));
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--linha);
+}
+.topbar__linha { display: flex; align-items: center; gap: 16px; height: 58px; }
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; }
+.logo__mark {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--ciano), var(--roxo) 55%, var(--rosa));
+  color: #fff; font-size: 18px; box-shadow: 0 0 18px rgba(0, 229, 255, .45);
+}
+.logo__text { font-family: var(--f-titulo); font-weight: 700; font-size: 20px; letter-spacing: .08em; }
+.logo__text b { color: var(--ciano); font-weight: 700; }
+.topnav { display: none; gap: 4px; }
+.topnav a {
+  text-decoration: none; font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--texto-suave); padding: 8px 12px; border-radius: var(--raio-sm);
+}
+.topnav a:hover { color: var(--texto); background: var(--painel-2); }
+.topnav a[aria-current="page"] { color: var(--ciano); }
+.icone-btn {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px;
+  background: var(--painel); border: 1px solid var(--linha); text-decoration: none; position: relative;
+}
+.icone-btn svg { width: 20px; height: 20px; fill: var(--texto); }
+.contador {
+  position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 9px; background: var(--rosa); color: #fff; font-size: 11px; font-weight: 700;
+  display: grid; place-items: center;
+}
+
+.tabbar .contador { top: 6px; right: calc(50% - 24px); }
+.topnav .contador { position: static; display: inline-grid; margin-left: 6px; vertical-align: 1px; }
+
+/* Chips de categoria (rolam para o lado no celular) */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 0 0 12px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--linha);
+  background: var(--painel); color: var(--texto-suave); font-weight: 600; font-size: 13px;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.chip:hover { color: var(--texto); border-color: var(--ciano); }
+.chip[aria-pressed="true"], .chip[aria-current="page"] {
+  background: linear-gradient(135deg, var(--ciano), var(--roxo)); color: #fff; border-color: transparent;
+}
+
+/* ---------- Barra inferior (celular) ---------- */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  height: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px));
+  padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  background: rgba(10, 14, 31, .96); backdrop-filter: blur(12px);
+  border-top: 1px solid var(--linha);
+}
+.tabbar a {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  text-decoration: none; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--texto-suave);
+  position: relative;
+}
+.tabbar svg { width: 22px; height: 22px; fill: currentColor; }
+.tabbar a[aria-current="page"] { color: var(--ciano); }
+.tabbar a[aria-current="page"]::before {
+  content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 3px; border-radius: 0 0 3px 3px;
+  background: var(--ciano); box-shadow: 0 0 12px var(--ciano);
+}
+
+/* ---------- Botões ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 46px; padding: 0 20px; border: 0; border-radius: var(--raio-sm);
+  font-family: var(--f-titulo); font-weight: 700; font-size: 15px; letter-spacing: .06em; text-transform: uppercase;
+  text-decoration: none; cursor: pointer; transition: transform .12s, box-shadow .2s, filter .2s;
+}
+.btn:active { transform: scale(.97); }
+.btn svg { width: 18px; height: 18px; fill: currentColor; }
+.btn--jogar {
+  background: linear-gradient(180deg, var(--verde), var(--verde-escuro)); color: var(--sobre-verde);
+  box-shadow: 0 6px 22px rgba(57, 255, 136, .35);
+}
+.btn--jogar:hover { filter: brightness(1.08); box-shadow: 0 8px 30px rgba(57, 255, 136, .5); }
+.btn--neon {
+  background: linear-gradient(135deg, var(--ciano), var(--roxo)); color: #fff;
+  box-shadow: 0 6px 22px rgba(0, 229, 255, .3);
+}
+.btn--neon:hover { filter: brightness(1.1); }
+.btn--fantasma { background: var(--painel-2); color: var(--texto); border: 1px solid var(--linha); }
+.btn--fantasma:hover { border-color: var(--ciano); }
+.btn--fantasma[aria-pressed="true"] { color: var(--rosa); border-color: var(--rosa); }
+.acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ---------- Capa gerada (sem imagens) ---------- */
+.capa {
+  position: relative; overflow: hidden; aspect-ratio: 16 / 9; max-width: 100%;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+  isolation: isolate;
+}
+.capa::before { /* grade "retrô" no chão */
+  content: ""; position: absolute; inset: 55% -20% -10%; z-index: -1;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 1px, transparent 1px 16px);
+  transform: perspective(200px) rotateX(55deg); transform-origin: top;
+  mask-image: linear-gradient(transparent, #000 40%);
+}
+.capa__sol {
+  position: absolute; right: 8%; top: 12%; width: 34%; aspect-ratio: 1; border-radius: 50%; z-index: -1;
+  background: linear-gradient(180deg, var(--c3), transparent 120%);
+  box-shadow: 0 0 40px var(--c3);
+}
+.capa__icone { position: absolute; right: 14%; top: 22%; width: 22%; aspect-ratio: 1; display: grid; place-items: center; }
+.capa__icone svg { width: 100%; height: 100%; fill: rgba(255,255,255,.92); filter: drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
+.capa__titulo {
+  position: absolute; left: 7%; bottom: 10%; right: 40%;
+  font-family: var(--f-titulo); font-weight: 700; color: #fff; text-transform: uppercase;
+  font-size: clamp(13px, 3.8vw, 18px); line-height: 1.05; letter-spacing: .02em;
+  text-shadow: 0 2px 0 rgba(0,0,0,.35), 0 0 18px rgba(0,0,0,.35);
+}
+.selo {
+  position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--rosa); color: #fff;
+}
+.selo--novo { background: var(--ciano); color: #001b22; }
+
+/* ---------- Vitrine (carrossel) ---------- */
+.vitrine { margin-bottom: 28px; }
+.vitrine__trilho {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 100%;
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  border-radius: var(--raio); scrollbar-width: none;
+}
+.vitrine__trilho::-webkit-scrollbar { display: none; }
+.slide {
+  scroll-snap-align: start; position: relative; display: grid;
+  background: var(--painel); border: 1px solid var(--linha); border-radius: var(--raio); overflow: hidden;
+  text-decoration: none;
+}
+.slide .capa { aspect-ratio: 16 / 10; }
+.slide .capa__titulo { font-size: clamp(24px, 8vw, 40px); right: 30%; }
+.slide__info { padding: 14px 16px 16px; display: grid; gap: 8px; min-width: 0; }
+.slide__info h3 { font-size: 22px; text-transform: uppercase; }
+.slide__desc { color: var(--texto-suave); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.slide__rodape { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pontos { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
+.pontos button {
+  width: 10px; height: 10px; padding: 0; border-radius: 5px; border: 0; cursor: pointer;
+  background: var(--linha); transition: width .25s, background .25s;
+}
+.pontos button[aria-current="true"] { width: 26px; background: var(--ciano); box-shadow: 0 0 10px var(--ciano); }
+
+/* ---------- Seções e fileiras ---------- */
+.secao { margin-top: 26px; }
+.secao__cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.secao__cab h2 { font-size: 18px; text-transform: uppercase; letter-spacing: .08em; display: flex; align-items: center; gap: 10px; }
+.secao__cab h2::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--grad, linear-gradient(var(--ciano), var(--roxo))); }
+.secao__cab a { font-size: 13px; font-weight: 600; color: var(--ciano); text-decoration: none; white-space: nowrap; }
+.secao__cab a:hover { text-decoration: underline; }
+
+.fileira {
+  list-style: none; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 2px max(16px, env(safe-area-inset-left, 0px)) 8px;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 62%; gap: 12px;
+  overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+}
+.fileira::-webkit-scrollbar { display: none; }
+.fileira > li { scroll-snap-align: start; min-width: 0; }
+
+.grade { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+.card {
+  display: flex; flex-direction: column; height: 100%; text-decoration: none;
+  background: var(--painel); border: 1px solid var(--linha); border-radius: var(--raio-sm); overflow: hidden;
+  transition: transform .18s, border-color .18s, box-shadow .18s;
+}
+.card:hover { transform: translateY(-3px); border-color: var(--ciano); box-shadow: 0 10px 30px rgba(0, 229, 255, .18); }
+.card__info { display: grid; gap: 4px; padding: 10px 10px 12px; min-width: 0; }
+.card__titulo { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card__meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; color: var(--texto-suave); }
+.card__meta span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.estrelas { color: var(--amarelo); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.online { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.online::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; background: var(--painel-2); color: var(--texto-suave); }
+
+/* ---------- Cabeçalho de páginas ---------- */
+.cab-pagina { margin-bottom: 16px; }
+.cab-pagina h1 { font-size: 28px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.cab-pagina h1 em { font-style: normal; color: var(--ciano); }
+.cab-pagina p { color: var(--texto-suave); font-size: 14px; }
+
+/* ---------- Busca ---------- */
+.busca {
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; margin-bottom: 14px;
+  background: var(--painel); border: 1px solid var(--linha); border-radius: var(--raio-sm);
+}
+.busca:focus-within { border-color: var(--ciano); box-shadow: 0 0 0 3px rgba(0, 229, 255, .25); }
+.busca svg { width: 18px; height: 18px; fill: var(--texto-suave); flex: none; }
+.busca input {
+  flex: 1; min-width: 0; height: 42px; border: 0; background: transparent; outline: none;
+  font: 16px var(--f-texto); color: var(--texto);
+}
+.busca input::placeholder { color: var(--texto-suave); }
+.busca .btn { min-height: 42px; padding: 0 14px; font-size: 13px; }
+
+.barra-filtro { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; font-size: 13px; color: var(--texto-suave); }
+.barra-filtro label { display: inline-flex; align-items: center; gap: 8px; }
+.barra-filtro select {
+  background: var(--painel); color: var(--texto); border: 1px solid var(--linha); border-radius: 6px;
+  padding: 6px 8px; font: 600 13px var(--f-texto);
+}
+.vazio { padding: 28px 16px; text-align: center; color: var(--texto-suave); background: var(--painel); border: 1px dashed var(--linha); border-radius: var(--raio); }
+.vazio strong { display: block; color: var(--texto); font-family: var(--f-titulo); font-size: 18px; margin-bottom: 4px; }
+.vazio .acoes { justify-content: center; margin-top: 14px; }
+
+/* ---------- Paginação ---------- */
+.pag { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.pag__item {
+  display: inline-grid; place-items: center; min-width: 44px; min-height: 42px; padding: 0 14px;
+  border-radius: var(--raio-sm); background: var(--painel); border: 1px solid var(--linha);
+  font-weight: 700; text-decoration: none;
+}
+.pag__item:hover { border-color: var(--ciano); }
+.pag__item--ativo { background: linear-gradient(135deg, var(--ciano), var(--roxo)); border-color: transparent; color: #fff; }
+.pag__item--desab { opacity: .4; pointer-events: none; }
+
+/* ---------- Detalhes ---------- */
+.migalhas { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--texto-suave); margin-bottom: 12px; }
+.migalhas a { text-decoration: none; }
+.migalhas a:hover { color: var(--ciano); }
+.detalhe { display: grid; gap: 18px; }
+.detalhe .capa { border-radius: var(--raio); border: 1px solid var(--linha); }
+.detalhe .capa__titulo { font-size: clamp(26px, 9vw, 46px); right: 30%; }
+.detalhe__info { display: grid; gap: 14px; min-width: 0; }
+.detalhe h1 { font-size: 32px; text-transform: uppercase; }
+.detalhe__desc { color: var(--texto-suave); max-width: 62ch; }
+.avaliacao { display: grid; gap: 6px; padding: 14px; background: var(--painel); border: 1px solid var(--linha); border-radius: var(--raio-sm); }
+.avaliacao__topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.avaliacao__rotulo { font-weight: 700; color: var(--ciano); }
+.barra { height: 8px; border-radius: 4px; background: var(--painel-2); overflow: hidden; }
+.barra span { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--ciano), var(--verde)); }
+.ficha { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; }
+.ficha dt { color: var(--texto-suave); }
+.ficha dd { margin: 0; font-weight: 600; }
+.detalhe .acoes .btn { flex: 1 1 auto; }
+.aviso { margin-top: 20px; padding: 14px 16px; border-radius: var(--raio-sm); border: 1px solid var(--linha); background: rgba(139, 92, 255, .1); font-size: 13px; color: var(--texto-suave); }
+.aviso strong { color: var(--texto); }
+
+/* ---------- Acesso (tela de carregamento) ---------- */
+.palco {
+  position: relative; overflow: hidden; display: grid; place-items: center; text-align: center; gap: 12px;
+  min-height: 340px; padding: 32px 20px; margin-bottom: 18px; border-radius: var(--raio);
+  background: linear-gradient(135deg, var(--c1), var(--c2)); border: 1px solid var(--linha);
+}
+.palco h2 { font-size: 30px; text-transform: uppercase; text-shadow: 0 0 24px rgba(0,0,0,.4); }
+.palco p { color: rgba(255,255,255,.85); font-size: 14px; }
+.carregando { width: min(280px, 80%); height: 10px; border-radius: 5px; background: rgba(0,0,0,.35); overflow: hidden; }
+.carregando span { display: block; height: 100%; width: 0; border-radius: 5px; background: linear-gradient(90deg, var(--ciano), var(--verde)); box-shadow: 0 0 14px var(--verde); animation: carregar 2.2s ease-out forwards; }
+@keyframes carregar { to { width: 100%; } }
+.palco__pronto { opacity: 0; animation: aparecer .4s 2.2s forwards; }
+@keyframes aparecer { to { opacity: 1; } }
+
+.rodape { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--linha); font-size: 12px; color: var(--texto-suave); text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* =========================================================
+   Tablet (≥600px)
+   ========================================================= */
+@media (min-width: 600px) {
+  .fileira { grid-auto-columns: 38%; }
+  .grade { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .slide { grid-template-columns: 1.6fr 1fr; }
+  .slide .capa { aspect-ratio: auto; min-height: 300px; }
+  .slide__info { align-content: center; padding: 22px; }
+  .slide .capa__titulo { font-size: 38px; }
+  .detalhe { grid-template-columns: 1.3fr 1fr; align-items: start; gap: 24px; }
+  .detalhe .acoes .btn { flex: 0 1 auto; }
+}
+
+/* =========================================================
+   Desktop (≥960px): menu no topo, some a barra inferior
+   ========================================================= */
+@media (min-width: 960px) {
+  body { padding-bottom: 0; }
+  .tabbar { display: none; }
+  .topnav { display: flex; }
+  .topbar__linha { height: 66px; }
+  main.wrap { padding-block: 24px 56px; }
+  .fileira { margin: 0; padding: 2px 0 8px; grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-columns: auto; overflow: visible; gap: 18px; }
+  .grade { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+  .slide .capa { min-height: 380px; }
+  .slide .capa__titulo { font-size: 48px; }
+  .cab-pagina h1 { font-size: 34px; }
+  .detalhe h1 { font-size: 40px; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="topbar__linha">
+      <a class="logo" href="#inicio" aria-label="Jogoteca, ir para o início">
+        <span class="logo__mark" aria-hidden="true">✦</span>
+        <span class="logo__text">JOGO<b>TECA</b></span>
+      </a>
+      <nav class="topnav" aria-label="Principal">
+        <a href="#inicio" data-nav="inicio">Loja</a>
+        <a href="#catalogo" data-nav="catalogo">Catálogo</a>
+        <a href="#busca" data-nav="busca">Buscar</a>
+        <a href="#desejos" data-nav="desejos">Lista de desejos</a>
+      </nav>
+      <a class="icone-btn" href="#busca" aria-label="Buscar jogos">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.8 4.8-1.4 1.4-4.8-4.8A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+      </a>
+    </div>
+    <nav class="chips" id="chips-topo" aria-label="Categorias"></nav>
+  </div>
+</header>
+
+<main id="conteudo" class="wrap" tabindex="-1"></main>
+
+<nav class="tabbar" aria-label="Navegação rápida">
+  <a href="#inicio" data-nav="inicio">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Loja</span>
+  </a>
+  <a href="#catalogo" data-nav="catalogo">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Catálogo</span>
+  </a>
+  <a href="#busca" data-nav="busca">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.8 4.8-1.4 1.4-4.8-4.8A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg><span>Buscar</span>
+  </a>
+  <a href="#desejos" data-nav="desejos">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.5 1.1 4.3 2.4h2.6C14.1 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg><span>Desejos</span>
+  </a>
+</nav>
+
+<script>
+/* =========================================================
+   DADOS — 24 jogos fictícios.
+   [slug, título, gênero, classificação, cor1, cor2, cor3, nota(0-100), jogando agora, descrição]
+   Para adicionar um jogo, copie uma linha e troque os dados.
+   ========================================================= */
+const JOGOS = [
+  ["astro-arena","Astro Arena","Ação","12 anos","#2b1055","#ff2e88","#ffd23f",92,18420,"Duelos rápidos em arenas flutuantes no meio de um cinturão de asteroides."],
+  ["astro-lab","Astro Lab","Estratégia","Livre","#0b3d91","#00e5ff","#8b5cff",88,6210,"Monte um laboratório orbital e pesquise tecnologias para colonizar novos planetas."],
+  ["astro-voyage","Astro Voyage","Exploração","Livre","#1a0b4f","#8b5cff","#00e5ff",85,3980,"Uma viagem tranquila por sistemas solares desconhecidos, catalogando cada descoberta."],
+  ["castelo-das-nuvens","Castelo das Nuvens","Estratégia","10 anos","#0e5a8a","#7fd4ff","#ffffff",90,9150,"Defenda um castelo suspenso no céu organizando recursos e aliados."],
+  ["circuito-neon","Circuito Neon","Corrida","Livre","#14002e","#ff2e88","#00e5ff",94,24780,"Corridas noturnas em pistas iluminadas, com atalhos que mudam a cada volta."],
+  ["floresta-luminosa","Floresta Luminosa","Exploração","Livre","#04331f","#18c27a","#b6ff5c",91,7340,"Explore uma floresta que brilha à noite e descubra os segredos de suas criaturas."],
+  ["jardim-de-cristal","Jardim de Cristal","Simulação","Livre","#0b4a4a","#39ffd2","#ff8bd1",83,2860,"Cultive plantas de cristal e transforme um terreno vazio num jardim premiado."],
+  ["labirinto-prisma","Labirinto Prisma","Quebra-cabeça","Livre","#2d0a5e","#8b5cff","#ffd23f",89,5120,"Redirecione feixes de luz para abrir passagens num labirinto de espelhos."],
+  ["mare-de-neon","Maré de Neon","Arcade","Livre","#001d4a","#00b3ff","#ff2e88",87,11430,"Surfe ondas de luz e acumule pontos num arcade de ritmo acelerado."],
+  ["mundo-de-origami","Mundo de Origami","Casual","Livre","#5a1a00","#ff7a2e","#ffe0b3",80,4410,"Dobre papéis para criar pontes, barcos e caminhos num mundo feito de origami."],
+  ["orbita-zero","Órbita Zero","Aventura espacial","10 anos","#0a0e3f","#3a2bff","#00e5ff",96,31200,"Viaje entre mundos, descubra ruínas cósmicas e explore um universo repleto de mistérios. Um jogo fictício criado para demonstrar o protótipo."],
+  ["pixel-rush","Pixel Rush","Plataforma","Livre","#3d0040","#ff2ee0","#39ff88",93,20160,"Plataforma clássica em pixel art, com fases curtas e desafios cronometrados."],
+  ["portais-do-tempo","Portais do Tempo","Aventura","10 anos","#2a1200","#ff9b2e","#8b5cff",86,6780,"Atravesse portais para diferentes épocas e corrija falhas na linha do tempo."],
+  ["rota-astral","Rota Astral","Aventura","10 anos","#00264d","#00e5ff","#ffd23f",88,8900,"Trace rotas entre constelações e guie uma nave de carga até o destino."],
+  ["ruinas-do-sol","Ruínas do Sol","Ação","12 anos","#4a0d00","#ff5a1f","#ffd23f",84,7650,"Enfrente guardiões antigos em templos escondidos sob o deserto."],
+  ["saltos-da-lua","Saltos da Lua","Plataforma","Livre","#151a3d","#6c7cff","#e6e9ff",82,3540,"Pule entre crateras com gravidade reduzida e colete fragmentos lunares."],
+  ["torre-esmeralda","Torre Esmeralda","Estratégia","10 anos","#003322","#00d68f","#ffd23f",87,5870,"Construa andar por andar uma torre defensiva contra ondas de invasores."],
+  ["trilha-cosmica","Trilha Cósmica","Corrida","Livre","#1c0040","#b02eff","#00e5ff",90,13320,"Corridas em trilhas espaciais com curvas impossíveis e turbo de cometas."],
+  ["vale-das-estrelas","Vale das Estrelas","Aventura","Livre","#0d0a3a","#4b3bff","#ffd23f",92,9980,"Acompanhe uma pequena exploradora num vale onde as estrelas caem toda noite."],
+  ["vila-dos-ventos","Vila dos Ventos","Simulação","Livre","#003a4d","#2ed3ff","#b6ff5c",81,2410,"Administre uma vila movida a cata-ventos e mantenha todos felizes."],
+  ["voo-livre","Voo Livre","Aventura","Livre","#00345c","#56c8ff","#ffffff",85,4720,"Plane sobre ilhas flutuantes e descubra caminhos escondidos entre as nuvens."],
+  ["xadrez-lunar","Xadrez Lunar","Estratégia","Livre","#111633","#5b6bd6","#e6e9ff",79,1890,"Uma variação do xadrez jogada num tabuleiro que muda com as fases da lua."],
+  ["ypsilon-quest","Ypsilon Quest","Quebra-cabeça","Livre","#3b0030","#ff2e88","#39ffd2",86,3260,"Resolva enigmas lógicos para atravessar um mundo em forma de letra Y."],
+  ["zenite-azul","Zênite Azul","Ação","12 anos","#001a5c","#0066ff","#00e5ff",91,15870,"Combates aéreos no ponto mais alto do céu, sobre um oceano sem fim."]
+].map(([slug, titulo, genero, classificacao, c1, c2, c3, nota, online, descricao]) =>
+  ({ slug, titulo, genero, classificacao, c1, c2, c3, nota, online, descricao }));
+
+const porSlug = (slug) => JOGOS.find((j) => j.slug === slug);
+
+const VITRINE = ["orbita-zero", "circuito-neon", "pixel-rush", "floresta-luminosa"];
+const SECOES = [
+  { titulo: "Mais jogados agora", cor: "linear-gradient(var(--verde), var(--ciano))", lista: () => [...JOGOS].sort((a, b) => b.online - a.online).slice(0, 8) },
+  { titulo: "Mais bem avaliados", cor: "linear-gradient(var(--amarelo), var(--rosa))", lista: () => [...JOGOS].sort((a, b) => b.nota - a.nota).slice(0, 8) },
+  { titulo: "Novidades", cor: "linear-gradient(var(--ciano), var(--roxo))", lista: () => ["astro-lab","jardim-de-cristal","mare-de-neon","vale-das-estrelas","ypsilon-quest","zenite-azul","voo-livre","trilha-cosmica"].map(porSlug), novo: true }
+];
+const NOVOS = new Set(SECOES[2].lista().map((j) => j.slug));
+
+/* Ícone desenhado na capa, conforme o gênero */
+const ICONES = {
+  "Ação": "M6.9 2 2 6.9l4.3 4.3-2.6 2.6 1.4 1.4 2.6-2.6 2.1 2.1-3.5 3.5 2.8 2.8 3.5-3.5 4.2 4.2 1.4-1.4-4.2-4.2 3.5-3.5-2.8-2.8-3.5 3.5-2.1-2.1 2.6-2.6-1.4-1.4-2.6 2.6z",
+  "Estratégia": "M7 21h10v-2H7zm1-4h8l1-9-3 2-2-5-2 5-3-2z",
+  "Exploração": "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3.5 6.5-2 5-5 2 2-5z",
+  "Corrida": "M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13v6h-2v-2H7v2H5zm2.5 1.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM7.3 11h9.4l-1-3H8.3z",
+  "Simulação": "M12 3l9 7v11h-6v-6H9v6H3V10z",
+  "Quebra-cabeça": "M10 3a2 2 0 0 1 4 0v2h5v5h-2a2 2 0 0 0 0 4h2v5h-5v-2a2 2 0 0 0-4 0v2H5v-5h2a2 2 0 0 0 0-4H5V5h5z",
+  "Arcade": "M7 6h10a5 5 0 0 1 0 10h-1l-2 2h-4l-2-2H7A5 5 0 0 1 7 6zm0 3v2H5v2h2v2h2v-2h2v-2H9V9zm9 0a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 16 9zm2 3a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z",
+  "Casual": "M12 2l2.9 6.9L22 9.3l-5.4 4.8L18.2 21 12 17.3 5.8 21l1.6-6.9L2 9.3l7.1-.4z",
+  "Plataforma": "M3 18h6v3H3zm6-5h6v3H9zm6-5h6v3h-6zM6 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+  "Aventura": "M3 20l6.5-11 4 6.5L16 12l5 8z",
+  "Aventura espacial": "M12 2c3 2 5 6 5 10l2 3v4l-4-2H9l-4 2v-4l2-3c0-4 2-8 5-10zm0 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
+};
+
+/* =========================================================
+   APP — rotas pelo # do endereço
+   #inicio · #catalogo · #catalogo-2 · #genero-acao · #busca
+   #desejos · #jogo-<slug> · #acesso-<slug>
+   ========================================================= */
+(function () {
+  "use strict";
+  const POR_PAGINA = 20;
+  const app = document.getElementById("conteudo");
+  const chipsTopo = document.getElementById("chips-topo");
+
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const normalizar = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  const slugGenero = (g) => normalizar(g).replace(/\s+/g, "-");
+  const alfabetica = [...JOGOS].sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR", { sensitivity: "base" }));
+  const GENEROS = [...new Set(JOGOS.map((j) => j.genero.split(" ")[0]))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const numero = (n) => n.toLocaleString("pt-BR");
+
+  let termoBusca = "";
+  let ordem = "az";
+
+  /* Lista de desejos: salva no navegador (se ele permitir) */
+  let desejos = new Set();
+  try { desejos = new Set(JSON.parse(localStorage.getItem("jogoteca-desejos") || "[]")); } catch (e) {}
+  function salvarDesejos() {
+    try { localStorage.setItem("jogoteca-desejos", JSON.stringify([...desejos])); } catch (e) {}
+  }
+
+  function rotuloNota(n) {
+    if (n >= 93) return "Extremamente positivas";
+    if (n >= 88) return "Muito positivas";
+    if (n >= 82) return "Positivas";
+    return "Neutras";
+  }
+
+  /* ---------- peças reutilizáveis ---------- */
+  function capa(j, { selo = true } = {}) {
+    const icone = ICONES[j.genero] || ICONES["Casual"];
+    let marca = "";
+    if (selo && NOVOS.has(j.slug)) marca = '<span class="selo selo--novo">Novo</span>';
+    else if (selo && j.online > 15000) marca = '<span class="selo">Em alta</span>';
+    return `
+      <div class="capa" style="--c1:${j.c1};--c2:${j.c2};--c3:${j.c3}" aria-hidden="true">
+        <span class="capa__sol"></span>
+        <span class="capa__icone"><svg viewBox="0 0 24 24"><path d="${icone}"/></svg></span>
+        <span class="capa__titulo">${esc(j.titulo)}</span>
+        ${marca}
+      </div>`;
+  }
+
+  function card(j) {
+    return `
+      <li>
+        <a class="card" href="#jogo-${j.slug}">
+          ${capa(j)}
+          <span class="card__info">
+            <span class="card__titulo">${esc(j.titulo)}</span>
+            <span class="card__meta"><span>${esc(j.genero)}</span><span class="estrelas" aria-label="Nota ${j.nota} de 100">★ ${j.nota}%</span></span>
+            <span class="online">${numero(j.online)} jogando</span>
+          </span>
+        </a>
+      </li>`;
+  }
+  const grade = (l) => `<ul class="grade" role="list">${l.map(card).join("")}</ul>`;
+  const fileira = (l) => `<ul class="fileira" role="list">${l.map(card).join("")}</ul>`;
+
+  const formBusca = (v) => `
+    <form class="busca" role="search" data-busca>
+      <label class="sr-only" for="campo-busca">Buscar jogos pelo nome</label>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.8 4.8-1.4 1.4-4.8-4.8A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+      <input id="campo-busca" name="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar jogos..." value="${esc(v)}">
+      <button class="btn btn--neon" type="submit">Buscar</button>
+    </form>`;
+
+  const iconePlay = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  const iconeCoracao = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.5 1.1 4.3 2.4h2.6C14.1 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>';
+
+  /* ---------- telas ---------- */
+  function telaInicio() {
+    const slides = VITRINE.map(porSlug).map((j) => `
+      <a class="slide" href="#jogo-${j.slug}">
+        ${capa(j)}
+        <div class="slide__info">
+          <div class="tags"><span class="tag">${esc(j.genero)}</span><span class="tag">${esc(j.classificacao)}</span></div>
+          <h3>${esc(j.titulo)}</h3>
+          <p class="slide__desc">${esc(j.descricao)}</p>
+          <div class="slide__rodape">
+            <span class="estrelas">★ ${j.nota}% · ${rotuloNota(j.nota)}</span>
+            <span class="online">${numero(j.online)} jogando</span>
+          </div>
+        </div>
+      </a>`).join("");
+
+    const secoes = SECOES.map((s) => `
+      <section class="secao" style="--grad:${s.cor}">
+        <div class="secao__cab"><h2>${s.titulo}</h2><a href="#catalogo">Ver todos</a></div>
+        ${fileira(s.lista())}
+      </section>`).join("");
+
+    return {
+      nav: "inicio", titulo: "Loja",
+      html: `
+        <section class="vitrine" aria-roledescription="carrossel" aria-label="Destaques e recomendados">
+          <div class="secao__cab"><h2>Destaques e recomendados</h2></div>
+          <div class="vitrine__trilho" id="trilho">${slides}</div>
+          <div class="pontos" id="pontos">${VITRINE.map((_, i) => `<button type="button" aria-label="Destaque ${i + 1}" data-slide="${i}"${i === 0 ? ' aria-current="true"' : ""}></button>`).join("")}</div>
+        </section>
+        ${secoes}
+        <p class="rodape">Jogoteca · Protótipo acadêmico. Jogos, notas e números de jogadores são fictícios.</p>`
+    };
+  }
+
+  function ordenar(lista) {
+    const l = [...lista];
+    if (ordem === "nota") l.sort((a, b) => b.nota - a.nota);
+    else if (ordem === "online") l.sort((a, b) => b.online - a.online);
+    else l.sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR", { sensitivity: "base" }));
+    return l;
+  }
+
+  function telaCatalogo(pagina, genero) {
+    const base = genero ? JOGOS.filter((j) => slugGenero(j.genero.split(" ")[0]) === genero) : JOGOS;
+    const lista = ordenar(base);
+    const total = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
+    pagina = Math.min(Math.max(pagina, 1), total);
+    const pedaco = lista.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+    const nomeGenero = genero ? GENEROS.find((g) => slugGenero(g) === genero) : "";
+    const href = (n) => (n === 1 ? "#catalogo" : `#catalogo-${n}`);
+
+    let pag = "";
+    if (!genero && total > 1) {
+      pag += `<a class="pag__item${pagina === 1 ? " pag__item--desab" : ""}" href="${href(pagina - 1)}">Anterior</a>`;
+      for (let n = 1; n <= total; n++) pag += `<a class="pag__item${n === pagina ? " pag__item--ativo" : ""}" href="${href(n)}"${n === pagina ? ' aria-current="page"' : ""}>${n}</a>`;
+      pag += `<a class="pag__item${pagina === total ? " pag__item--desab" : ""}" href="${href(pagina + 1)}">Próxima</a>`;
+      pag = `<nav class="pag" aria-label="Paginação">${pag}</nav>`;
+    }
+
+    return {
+      nav: "catalogo", titulo: nomeGenero ? `Jogos de ${nomeGenero}` : `Catálogo, página ${pagina}`,
+      html: `
+        <header class="cab-pagina">
+          <h1>${nomeGenero ? `Jogos de <em>${esc(nomeGenero)}</em>` : "Catálogo de <em>jogos</em>"}</h1>
+          <p>${lista.length} ${lista.length === 1 ? "jogo" : "jogos"} para jogar direto no navegador.</p>
+        </header>
+        <div class="barra-filtro">
+          <span>${genero ? "Filtrado por gênero" : `Página ${pagina} de ${total} · ${POR_PAGINA} por página`}</span>
+          <label>Ordenar por
+            <select id="ordem" data-ordem>
+              <option value="az"${ordem === "az" ? " selected" : ""}>Nome (A–Z)</option>
+              <option value="nota"${ordem === "nota" ? " selected" : ""}>Melhor avaliados</option>
+              <option value="online"${ordem === "online" ? " selected" : ""}>Mais jogados</option>
+            </select>
+          </label>
+        </div>
+        ${grade(pedaco)}
+        ${pag}`
+    };
+  }
+
+  function telaBusca() {
+    const termo = termoBusca.trim(), n = normalizar(termo);
+    const res = n ? alfabetica.filter((j) => normalizar(j.titulo).includes(n) || normalizar(j.genero).includes(n)) : [];
+    let corpo;
+    if (!termo) {
+      corpo = `
+        <div class="secao__cab"><h2>Sugestões</h2></div>
+        ${grade([...JOGOS].sort((a, b) => b.online - a.online).slice(0, 4))}`;
+    } else if (!res.length) {
+      corpo = `<div class="vazio"><strong>Nada encontrado para “${esc(termo)}”</strong>Tente outro trecho do nome ou um gênero, como “corrida”.</div>`;
+    } else {
+      corpo = `<div class="barra-filtro"><span>${res.length} ${res.length === 1 ? "resultado" : "resultados"} para “${esc(termo)}”</span></div>${grade(res)}`;
+    }
+    return {
+      nav: "busca", titulo: "Buscar",
+      html: `
+        <header class="cab-pagina"><h1>Buscar <em>jogos</em></h1><p>Pesquise pelo nome do jogo ou pelo gênero.</p></header>
+        ${formBusca(termo)}
+        <div aria-live="polite">${corpo}</div>`
+    };
+  }
+
+  function telaDesejos() {
+    const lista = alfabetica.filter((j) => desejos.has(j.slug));
+    return {
+      nav: "desejos", titulo: "Lista de desejos",
+      html: `
+        <header class="cab-pagina"><h1>Lista de <em>desejos</em></h1><p>Os jogos que você marcou com o coração ficam guardados aqui, neste aparelho.</p></header>
+        ${lista.length ? grade(lista) : `
+          <div class="vazio">
+            <strong>Sua lista está vazia</strong>
+            Abra um jogo e toque em “Desejo” para guardar ele aqui.
+            <div class="acoes"><a class="btn btn--neon" href="#catalogo">Ver catálogo</a></div>
+          </div>`}`
+    };
+  }
+
+  function telaDetalhes(j) {
+    const relacionados = JOGOS.filter((x) => x.genero.split(" ")[0] === j.genero.split(" ")[0] && x.slug !== j.slug).slice(0, 4);
+    const naLista = desejos.has(j.slug);
+    return {
+      nav: "catalogo", titulo: j.titulo,
+      html: `
+        <nav class="migalhas" aria-label="Você está em"><a href="#inicio">Loja</a><span aria-hidden="true">›</span><a href="#genero-${slugGenero(j.genero.split(" ")[0])}">${esc(j.genero.split(" ")[0])}</a><span aria-hidden="true">›</span><span aria-current="page">${esc(j.titulo)}</span></nav>
+        <article class="detalhe">
+          ${capa(j, { selo: false })}
+          <div class="detalhe__info">
+            <h1>${esc(j.titulo)}</h1>
+            <div class="tags"><span class="tag">${esc(j.genero)}</span><span class="tag">Navegador</span><span class="tag">Grátis</span></div>
+            <p class="detalhe__desc">${esc(j.descricao)}</p>
+            <div class="avaliacao">
+              <div class="avaliacao__topo"><span>Avaliações</span><span class="avaliacao__rotulo">${rotuloNota(j.nota)}</span></div>
+              <div class="barra" role="img" aria-label="${j.nota}% de avaliações positivas"><span style="width:${j.nota}%"></span></div>
+              <div class="avaliacao__topo"><span class="estrelas">★ ${j.nota}% positivas</span><span class="online">${numero(j.online)} jogando agora</span></div>
+            </div>
+            <dl class="ficha">
+              <dt>Gênero</dt><dd>${esc(j.genero)}</dd>
+              <dt>Classificação</dt><dd>${esc(j.classificacao)}</dd>
+              <dt>Plataforma</dt><dd>Navegador (celular e computador)</dd>
+            </dl>
+            <div class="acoes">
+              <a class="btn btn--jogar" href="#acesso-${j.slug}">${iconePlay} Jogar agora</a>
+              <button type="button" class="btn btn--fantasma" data-desejo="${j.slug}" aria-pressed="${naLista}">${iconeCoracao} ${naLista ? "Na lista" : "Desejo"}</button>
+            </div>
+          </div>
+        </article>
+        ${relacionados.length ? `<section class="secao"><div class="secao__cab"><h2>Você também pode curtir</h2></div>${fileira(relacionados)}</section>` : ""}
+        <p class="aviso"><strong>Protótipo:</strong> a abertura do jogo é simulada. O registro real de acessos depende de uma implementação futura.</p>`
+    };
+  }
+
+  function telaAcesso(j) {
+    return {
+      nav: "catalogo", titulo: `Jogando ${j.titulo}`,
+      html: `
+        <section class="palco" style="--c1:${j.c1};--c2:${j.c2}">
+          <h2>${esc(j.titulo)}</h2>
+          <div class="carregando" role="progressbar" aria-label="Carregando o jogo"><span></span></div>
+          <p class="palco__pronto">Pronto! Esta tela simula a abertura do jogo no navegador.</p>
+        </section>
+        <div class="acoes">
+          <a class="btn btn--fantasma" href="#jogo-${j.slug}">Voltar ao jogo</a>
+          <a class="btn btn--neon" href="#inicio">Ir para a loja</a>
+        </div>`
+    };
+  }
+
+  /* ---------- roteador ---------- */
+  function rota() {
+    const h = location.hash.replace(/^#/, "");
+    let m;
+    if (!h || h === "inicio") return telaInicio();
+    if (h === "catalogo") return telaCatalogo(1);
+    if ((m = h.match(/^catalogo-(\d+)$/))) return telaCatalogo(+m[1]);
+    if ((m = h.match(/^genero-([a-z-]+)$/))) return telaCatalogo(1, m[1]);
+    if (h === "busca") return telaBusca();
+    if (h === "desejos") return telaDesejos();
+    if ((m = h.match(/^(jogo|acesso)-([a-z0-9-]+)$/)) && porSlug(m[2])) {
+      return m[1] === "jogo" ? telaDetalhes(porSlug(m[2])) : telaAcesso(porSlug(m[2]));
+    }
+    return telaInicio();
+  }
+
+  function desenharChips() {
+    const h = location.hash.replace(/^#/, "");
+    const todos = `<a class="chip" href="#catalogo"${h.startsWith("catalogo") ? ' aria-current="page"' : ""}>Todos</a>`;
+    chipsTopo.innerHTML = todos + GENEROS.map((g) => {
+      const s = slugGenero(g);
+      return `<a class="chip" href="#genero-${s}"${h === "genero-" + s ? ' aria-current="page"' : ""}>${esc(g)}</a>`;
+    }).join("");
+  }
+
+  function atualizarContador() {
+    document.querySelectorAll('[data-nav="desejos"]').forEach((a) => {
+      let c = a.querySelector(".contador");
+      if (desejos.size) {
+        if (!c) { c = document.createElement("span"); c.className = "contador"; a.appendChild(c); }
+        c.textContent = desejos.size;
+      } else if (c) c.remove();
+    });
+  }
+
+  let primeira = true;
+  function render() {
+    const tela = rota();
+    app.innerHTML = tela.html;
+    document.title = `${tela.titulo} · Jogoteca`;
+    document.querySelectorAll("[data-nav]").forEach((a) =>
+      a.dataset.nav === tela.nav ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+    desenharChips();
+    atualizarContador();
+    iniciarCarrossel();
+    window.scrollTo(0, 0);
+    if (!primeira) app.focus({ preventScroll: true });
+    primeira = false;
+  }
+
+  /* ---------- carrossel da vitrine ---------- */
+  let timer = null;
+  function iniciarCarrossel() {
+    clearInterval(timer);
+    const trilho = document.getElementById("trilho");
+    if (!trilho) return;
+    const pontos = [...document.querySelectorAll("#pontos button")];
+    const atual = () => Math.round(trilho.scrollLeft / trilho.clientWidth);
+    const marcar = () => pontos.forEach((p, i) => p.setAttribute("aria-current", String(i === atual())));
+    const ir = (i) => trilho.scrollTo({ left: i * trilho.clientWidth });
+    trilho.addEventListener("scroll", () => { clearTimeout(trilho._t); trilho._t = setTimeout(marcar, 80); }, { passive: true });
+    pontos.forEach((p) => p.addEventListener("click", () => { ir(+p.dataset.slide); reiniciar(); }));
+    const parado = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function reiniciar() {
+      clearInterval(timer);
+      if (!parado) timer = setInterval(() => ir((atual() + 1) % pontos.length), 5000);
+    }
+    trilho.addEventListener("pointerdown", reiniciar);
+    reiniciar();
+  }
+
+  /* ---------- eventos ---------- */
+  document.addEventListener("submit", (e) => {
+    const f = e.target.closest("[data-busca]");
+    if (!f) return;
+    e.preventDefault();
+    f.q.blur();
+    termoBusca = f.q.value;
+    if (location.hash === "#busca") render(); else location.hash = "busca";
+  });
+
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("[data-ordem]")) { ordem = e.target.value; render(); }
+  });
+
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-desejo]");
+    if (!b) return;
+    const s = b.dataset.desejo;
+    if (desejos.has(s)) desejos.delete(s); else desejos.add(s);
+    salvarDesejos();
+    const on = desejos.has(s);
+    b.setAttribute("aria-pressed", String(on));
+    b.innerHTML = `${iconeCoracao} ${on ? "Na lista" : "Desejo"}`;
+    atualizarContador();
+  });
+
+  window.addEventListener("hashchange", render);
+  render();
+})();
+</script>
+</body>
+</html>
