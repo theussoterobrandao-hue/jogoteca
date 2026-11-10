@@ -429,6 +429,9 @@ const SECOES = [
 const NOVOS = new Set(SECOES[2].slugs);
 const EM_ALTA = new Set(["orbita-zero", "circuito-neon", "pixel-rush", "astro-arena"]);
 
+/* Jogos que já têm versão jogável de verdade */
+const JOGAVEIS = { "circuito-neon": "jogos/circuito-neon.html" };
+
 /* =========================================================
    APP — rotas pelo # do endereço
    ========================================================= */
@@ -619,11 +622,11 @@ const EM_ALTA = new Set(["orbita-zero", "circuito-neon", "pixel-rush", "astro-ar
         <article class="jogo">
           <div class="jogo__tela">
             ${capa(j)}
-            <a class="btn btn--jogar" href="#acesso-${j.slug}">${svg(P_PLAY)} Jogar agora</a>
+            <a class="btn btn--jogar" href="${JOGAVEIS[j.slug] || "#acesso-" + j.slug}">${svg(P_PLAY)} Jogar agora</a>
           </div>
           <div class="jogo__info">
             <h1>${esc(j.titulo)}</h1>
-            <div class="tags"><a class="tag" href="#genero-${normalizar(generoBase(j.genero))}">${esc(j.genero)}</a><span class="tag">Navegador</span><span class="tag">Celular e PC</span><span class="tag">Grátis</span></div>
+            <div class="tags"><a class="tag" href="#genero-${normalizar(generoBase(j.genero))}">${esc(j.genero)}</a><span class="tag">Navegador</span><span class="tag">Celular e PC</span><span class="tag">Grátis</span>${JOGAVEIS[j.slug] ? '<span class="tag" style="color:var(--verde)">Jogável de verdade</span>' : ""}</div>
             <p class="jogo__desc">${esc(j.descricao)}</p>
             <dl class="ficha">
               <dt>Gênero</dt><dd>${esc(j.genero)}</dd>
