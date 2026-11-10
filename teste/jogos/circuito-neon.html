@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Circuito Neon · Jogoteca</title>
+<meta name="theme-color" content="#0c0d14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   CIRCUITO NEON — jogo de corrida da Jogoteca
+   Desvie dos carros, pegue as energias e vá o mais longe possível.
+   Tudo é desenhado num <canvas> com JavaScript.
+   ========================================================= */
+:root {
+  --fundo: #0c0d14;
+  --painel: rgba(19, 20, 31, .88);
+  --texto: #f4f4fb;
+  --suave: #a9abc9;
+  --rosa: #ff2e88;
+  --ciano: #22e0ff;
+  --verde: #3cdc7c;
+  --sobre-verde: #062413;
+  --f: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fundo); color: var(--texto); font-family: var(--f); }
+body { touch-action: none; user-select: none; -webkit-user-select: none; }
+canvas { display: block; width: 100%; height: 100%; }
+
+/* Barra de cima: voltar, pontos, recorde, pausa */
+.hud {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+.hud a, .hud button {
+  pointer-events: auto; display: grid; place-items: center; width: 42px; height: 42px; flex: none;
+  border: 0; border-radius: 50%; background: var(--painel); color: var(--texto); text-decoration: none; cursor: pointer;
+}
+.hud svg { width: 20px; height: 20px; fill: currentColor; }
+.placar { flex: 1; display: flex; justify-content: center; gap: 8px; }
+.placar span {
+  padding: 6px 14px; border-radius: 999px; background: var(--painel); font-weight: 900; font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.placar small { color: var(--suave); font-weight: 700; margin-right: 6px; }
+
+/* Telas de início / pausa / fim */
+.tela {
+  position: fixed; inset: 0; z-index: 3; display: grid; place-items: center;
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(12, 13, 20, .72); backdrop-filter: blur(4px);
+}
+.tela[hidden] { display: none; }
+.caixa {
+  width: min(420px, 100%); padding: 26px 22px; border-radius: 18px; text-align: center;
+  background: var(--painel); border: 1px solid #2e3047; box-shadow: 0 0 60px rgba(255, 46, 136, .25);
+}
+.caixa h1 {
+  margin: 0 0 6px; font-size: 34px; font-weight: 900; letter-spacing: .02em; line-height: 1.05;
+  color: #fff; text-shadow: 0 0 12px var(--rosa), 0 0 28px var(--rosa);
+}
+.caixa h1 em { font-style: normal; color: #fff; text-shadow: 0 0 12px var(--ciano), 0 0 28px var(--ciano); }
+.caixa p { margin: 0 0 16px; color: var(--suave); font-weight: 700; line-height: 1.45; }
+.caixa .grande { font-size: 44px; font-weight: 900; color: #fff; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.caixa ul { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 6px; color: var(--suave); font-weight: 700; font-size: 14px; text-align: left; }
+.caixa li b { color: var(--texto); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  min-height: 52px; border: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(180deg, var(--verde), #22b85f); color: var(--sobre-verde);
+  font: 900 18px var(--f); box-shadow: 0 6px 24px rgba(60, 220, 124, .35);
+}
+.btn:active { transform: scale(.97); }
+.btn--cinza { margin-top: 10px; background: #282a3d; color: var(--texto); box-shadow: none; font-size: 15px; min-height: 44px; text-decoration: none; }
+.novo-recorde { color: var(--verde) !important; }
+
+/* Botões de toque (só aparecem em tela de toque) */
+.setas {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; display: none; justify-content: space-between;
+  padding: 0 max(14px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+.setas button {
+  pointer-events: auto; width: 74px; height: 74px; border-radius: 50%; border: 2px solid rgba(34, 224, 255, .6);
+  background: rgba(19, 20, 31, .55); color: var(--ciano); display: grid; place-items: center;
+}
+.setas svg { width: 34px; height: 34px; fill: currentColor; }
+@media (hover: none) and (pointer: coarse) { .setas { display: flex; } }
+:focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<canvas id="tela" aria-label="Pista do jogo Circuito Neon"></canvas>
+
+<div class="hud">
+  <a href="../#jogo-circuito-neon" aria-label="Voltar para a Jogoteca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg></a>
+  <div class="placar" aria-live="off">
+    <span><small>PONTOS</small><b id="pontos">0</b></span>
+    <span><small>RECORDE</small><b id="recorde">0</b></span>
+  </div>
+  <button type="button" id="btn-pausa" aria-label="Pausar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg></button>
+</div>
+
+<!-- Tela inicial -->
+<section class="tela" id="tela-inicio">
+  <div class="caixa">
+    <h1>CIRCUITO <em>NEON</em></h1>
+    <p>Corrida noturna na pista de luz. Desvie dos carros e pegue as energias.</p>
+    <ul>
+      <li><b>Celular:</b> toque nas setas ou deslize para os lados</li>
+      <li><b>Computador:</b> setas ← → ou teclas A e D</li>
+      <li><b>Energia ⚡:</b> +50 pontos e turbo de 2 segundos</li>
+      <li><b>Pausa:</b> botão no canto ou tecla P</li>
+    </ul>
+    <button class="btn" type="button" id="btn-jogar">▶ Jogar</button>
+    <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
+  </div>
+</section>
+
+<!-- Pausa -->
+<section class="tela" id="tela-pausa" hidden>
+  <div class="caixa">
+    <h1>PAUSA</h1>
+    <p>Respira. A pista te espera.</p>
+    <button class="btn" type="button" id="btn-continuar">▶ Continuar</button>
+    <button class="btn btn--cinza" type="button" id="btn-reiniciar">Começar de novo</button>
+  </div>
+</section>
+
+<!-- Fim de jogo -->
+<section class="tela" id="tela-fim" hidden>
+  <div class="caixa">
+    <h1>BATEU!</h1>
+    <p>Sua pontuação</p>
+    <div class="grande" id="fim-pontos">0</div>
+    <p id="fim-recorde">Recorde: 0</p>
+    <button class="btn" type="button" id="btn-denovo">↻ Jogar de novo</button>
+    <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
+  </div>
+</section>
+
+<div class="setas">
+  <button type="button" id="seta-esq" aria-label="Ir para a esquerda"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg></button>
+  <button type="button" id="seta-dir" aria-label="Ir para a direita"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 18.6 10 20l8-8-8-8-1.4 1.4 6.6 6.6z"/></svg></button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Configuração do jogo ---------- */
+  const FAIXAS = 3;               // pista com 3 faixas: 0, 1 e 2
+  const VEL_INICIAL = 0.55;       // velocidade (pista por segundo)
+  const VEL_MAX = 1.6;
+  const ACELERACAO = 0.018;       // quanto acelera por segundo
+  const CORES_CARRO = ["#ff2e88", "#ffc93c", "#a35cff", "#ff7a3c"];
+  const P_JOGADOR = 0.78;           // onde o jogador fica na pista (0 = horizonte, 1 = fundo da tela)
+  const Z_JOGADOR = Math.sqrt(P_JOGADOR);
+
+  /* ---------- Elementos da página ---------- */
+  const canvas = document.getElementById("tela");
+  const ctx = canvas.getContext("2d");
+  const elPontos = document.getElementById("pontos");
+  const elRecorde = document.getElementById("recorde");
+  const telas = {
+    inicio: document.getElementById("tela-inicio"),
+    pausa: document.getElementById("tela-pausa"),
+    fim: document.getElementById("tela-fim")
+  };
+
+  /* ---------- Recorde salvo no navegador ---------- */
+  let recorde = 0;
+  try { recorde = Number(localStorage.getItem("circuito-neon-recorde")) || 0; } catch (e) {}
+  elRecorde.textContent = recorde;
+
+  /* ---------- Estado da partida ---------- */
+  let estado = "inicio";          // inicio | jogando | pausa | fim
+  let faixaAlvo = 1;              // faixa para onde o jogador está indo
+  let jogadorX = 1;               // posição atual (anda suavemente até faixaAlvo)
+  let velocidade = VEL_INICIAL;
+  let distancia = 0;              // vira a pontuação
+  let bonus = 0;                  // pontos das energias
+  let turbo = 0;                  // segundos de turbo restantes
+  let objetos = [];               // carros e energias na pista
+  let proximoObjeto = 0;          // tempo até criar o próximo objeto
+  let faixasLinha = 0;            // anima as faixas da pista
+  let tremor = 0;                 // tremida da tela ao bater
+  let ultimoTempo = 0;
+
+  /* ---------- Tamanho do canvas (nítido em qualquer tela) ---------- */
+  let L = 0, A = 0, dpr = 1;
+  function redimensionar() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    L = window.innerWidth; A = window.innerHeight;
+    canvas.width = Math.round(L * dpr); canvas.height = Math.round(A * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (estado !== "jogando") desenhar();
+  }
+  window.addEventListener("resize", redimensionar);
+
+  /* ---------- Perspectiva da pista ----------
+     p = 0 é o horizonte (longe) e p = 1 é a frente da tela (perto).
+     A pista fica mais larga conforme chega perto.                  */
+  const horizonte = () => A * 0.36;
+  const larguraPista = (p) => {
+    const perto = Math.min(L * 0.92, 560);
+    return perto * (0.06 + 0.94 * p);
+  };
+  const yNaTela = (p) => horizonte() + (A - horizonte()) * p;
+  function xDaFaixa(faixa, p) {
+    const w = larguraPista(p);
+    return L / 2 - w / 2 + w * ((faixa + 0.5) / FAIXAS);
+  }
+
+  /* ---------- Criar carros e energias ---------- */
+  function criarObjeto() {
+    const faixa = Math.floor(Math.random() * FAIXAS);
+    const ehEnergia = Math.random() < 0.22;
+    objetos.push({
+      tipo: ehEnergia ? "energia" : "carro",
+      faixa,
+      z: 0,                                  // 0 = horizonte, 1 = chegou no jogador
+      cor: CORES_CARRO[Math.floor(Math.random() * CORES_CARRO.length)]
+    });
+    // às vezes vem um segundo carro em outra faixa (nunca bloqueia as 3)
+    if (!ehEnergia && Math.random() < 0.3 + velocidade * 0.15) {
+      let outra = (faixa + 1 + Math.floor(Math.random() * 2)) % FAIXAS;
+      objetos.push({ tipo: "carro", faixa: outra, z: -0.02, cor: CORES_CARRO[Math.floor(Math.random() * CORES_CARRO.length)] });
+    }
+  }
+
+  /* ---------- Controles ---------- */
+  function mover(direcao) {
+    if (estado !== "jogando") return;
+    faixaAlvo = Math.max(0, Math.min(FAIXAS - 1, faixaAlvo + direcao));
+  }
+
+  document.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (k === "arrowleft" || k === "a") { mover(-1); e.preventDefault(); }
+    else if (k === "arrowright" || k === "d") { mover(1); e.preventDefault(); }
+    else if (k === "p" || k === "escape") { estado === "jogando" ? pausar() : estado === "pausa" && continuar(); }
+    else if ((k === "enter" || k === " ") && estado !== "jogando") { e.preventDefault(); estado === "pausa" ? continuar() : comecar(); }
+  });
+
+  // deslizar o dedo na pista
+  let toqueX = null;
+  canvas.addEventListener("pointerdown", (e) => { toqueX = e.clientX; });
+  canvas.addEventListener("pointerup", (e) => {
+    if (toqueX === null) return;
+    const dx = e.clientX - toqueX;
+    if (Math.abs(dx) > 30) mover(dx > 0 ? 1 : -1);
+    else mover(e.clientX < L / 2 ? -1 : 1);       // toque simples: lado da tela
+    toqueX = null;
+  });
+  document.getElementById("seta-esq").addEventListener("pointerdown", (e) => { e.preventDefault(); mover(-1); });
+  document.getElementById("seta-dir").addEventListener("pointerdown", (e) => { e.preventDefault(); mover(1); });
+
+  document.getElementById("btn-jogar").addEventListener("click", comecar);
+  document.getElementById("btn-denovo").addEventListener("click", comecar);
+  document.getElementById("btn-reiniciar").addEventListener("click", comecar);
+  document.getElementById("btn-continuar").addEventListener("click", continuar);
+  document.getElementById("btn-pausa").addEventListener("click", () => (estado === "jogando" ? pausar() : estado === "pausa" && continuar()));
+  document.addEventListener("visibilitychange", () => { if (document.hidden && estado === "jogando") pausar(); });
+
+  /* ---------- Fluxo da partida ---------- */
+  function mostrar(qual) {
+    Object.entries(telas).forEach(([nome, el]) => { el.hidden = nome !== qual; });
+  }
+
+  function comecar() {
+    faixaAlvo = 1; jogadorX = 1; velocidade = VEL_INICIAL;
+    distancia = 0; bonus = 0; turbo = 0; tremor = 0;
+    objetos = []; proximoObjeto = 0.6;
+    estado = "jogando";
+    mostrar(null);
+    ultimoTempo = performance.now();
+    requestAnimationFrame(quadro);
+  }
+  function pausar() { estado = "pausa"; mostrar("pausa"); }
+  function continuar() { estado = "jogando"; mostrar(null); ultimoTempo = performance.now(); requestAnimationFrame(quadro); }
+
+  function pontuacao() { return Math.floor(distancia * 10) + bonus; }
+
+  function fimDeJogo() {
+    estado = "fim";
+    tremor = 0.4;
+    const pts = pontuacao();
+    const bateuRecorde = pts > recorde;
+    if (bateuRecorde) {
+      recorde = pts;
+      try { localStorage.setItem("circuito-neon-recorde", String(recorde)); } catch (e) {}
+      elRecorde.textContent = recorde;
+    }
+    document.getElementById("fim-pontos").textContent = pts;
+    const r = document.getElementById("fim-recorde");
+    r.textContent = bateuRecorde ? "Novo recorde!" : `Recorde: ${recorde}`;
+    r.classList.toggle("novo-recorde", bateuRecorde);
+    desenhar();
+    setTimeout(() => mostrar("fim"), 450);
+  }
+
+  /* ---------- Atualizar o jogo a cada quadro ---------- */
+  function atualizar(dt) {
+    velocidade = Math.min(VEL_MAX, velocidade + ACELERACAO * dt);
+    const vel = velocidade * (turbo > 0 ? 1.6 : 1);
+    if (turbo > 0) turbo -= dt;
+
+    distancia += vel * dt;
+    faixasLinha = (faixasLinha + vel * dt * 4) % 1;
+
+    // o carro desliza até a faixa escolhida
+    jogadorX += (faixaAlvo - jogadorX) * Math.min(1, dt * 14);
+
+    // criar novos objetos
+    proximoObjeto -= dt;
+    if (proximoObjeto <= 0) {
+      criarObjeto();
+      proximoObjeto = Math.max(0.38, 1.1 - velocidade * 0.45) * (0.8 + Math.random() * 0.5);
+    }
+
+    // mover objetos e checar colisão
+    for (const o of objetos) {
+      o.z += vel * dt;
+      const perto = Math.abs(o.z - Z_JOGADOR) < 0.045;
+      const mesmaFaixa = Math.abs(o.faixa - jogadorX) < 0.55;
+      if (perto && mesmaFaixa && !o.pego) {
+        if (o.tipo === "energia") { o.pego = true; bonus += 50; turbo = 2; }
+        else if (turbo <= 0) { fimDeJogo(); return; }
+        else { o.pego = true; bonus += 20; }   // no turbo, o jogador atravessa
+      }
+    }
+    objetos = objetos.filter((o) => o.z < 1.15 && !(o.pego && o.tipo === "energia"));
+
+    elPontos.textContent = pontuacao();
+  }
+
+  /* ---------- Desenho ---------- */
+  function brilho(cor, tamanho) { ctx.shadowColor = cor; ctx.shadowBlur = tamanho; }
+
+  function desenharCeu() {
+    const g = ctx.createLinearGradient(0, 0, 0, horizonte());
+    g.addColorStop(0, "#07060f"); g.addColorStop(1, "#2a0b4a");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, L, horizonte());
+
+    // sol neon listrado
+    const r = Math.min(L, A) * 0.16, cx = L / 2, cy = horizonte() - r * 0.15;
+    const gs = ctx.createLinearGradient(0, cy - r, 0, cy + r);
+    gs.addColorStop(0, "#ffc93c"); gs.addColorStop(1, "#ff2e88");
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.closePath(); ctx.clip();
+    brilho("#ff2e88", 40); ctx.fillStyle = gs; ctx.fillRect(cx - r, cy - r, r * 2, r);
+    ctx.shadowBlur = 0; ctx.fillStyle = "#2a0b4a";
+    for (let i = 0; i < 5; i++) { const y = cy - r * 0.08 - i * r * 0.17; ctx.fillRect(cx - r, y, r * 2, 2 + i * 0.6); }
+    ctx.restore();
+
+    // prédios ao fundo
+    ctx.fillStyle = "#140a26";
+    const base = horizonte();
+    for (let i = 0; i < 18; i++) {
+      const w = L / 18, h = 18 + ((i * 37) % 50);
+      ctx.fillRect(i * w, base - h, w - 3, h);
+    }
+  }
+
+  function desenharChao() {
+    const g = ctx.createLinearGradient(0, horizonte(), 0, A);
+    g.addColorStop(0, "#1a0730"); g.addColorStop(1, "#0c0d14");
+    ctx.fillStyle = g; ctx.fillRect(0, horizonte(), L, A - horizonte());
+
+    // grade neon lateral
+    ctx.strokeStyle = "rgba(163, 92, 255, .35)"; ctx.lineWidth = 1;
+    for (let i = 0; i < 14; i++) {
+      const p = ((i / 14) + faixasLinha / 14) ** 2;
+      const y = yNaTela(p);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(L, y); ctx.stroke();
+    }
+  }
+
+  function desenharPista() {
+    // asfalto
+    const topoW = larguraPista(0), baseW = larguraPista(1);
+    ctx.fillStyle = "#11121c";
+    ctx.beginPath();
+    ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 + topoW / 2, horizonte());
+    ctx.lineTo(L / 2 + baseW / 2, A); ctx.lineTo(L / 2 - baseW / 2, A); ctx.closePath(); ctx.fill();
+
+    // bordas brilhando
+    ctx.lineWidth = 4; brilho("#22e0ff", 18); ctx.strokeStyle = "#22e0ff";
+    ctx.beginPath(); ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 - baseW / 2, A); ctx.stroke();
+    ctx.strokeStyle = "#ff2e88"; brilho("#ff2e88", 18);
+    ctx.beginPath(); ctx.moveTo(L / 2 + topoW / 2, horizonte()); ctx.lineTo(L / 2 + baseW / 2, A); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // faixas tracejadas que andam
+    ctx.fillStyle = "rgba(255,255,255,.55)";
+    for (let d = 1; d < FAIXAS; d++) {
+      for (let i = 0; i < 10; i++) {
+        const p1 = ((i + faixasLinha) / 10) ** 2, p2 = ((i + faixasLinha + 0.45) / 10) ** 2;
+        const x1 = L / 2 - larguraPista(p1) / 2 + larguraPista(p1) * (d / FAIXAS);
+        const x2 = L / 2 - larguraPista(p2) / 2 + larguraPista(p2) * (d / FAIXAS);
+        const w1 = 1 + p1 * 4, w2 = 1 + p2 * 4;
+        ctx.beginPath();
+        ctx.moveTo(x1 - w1, yNaTela(p1)); ctx.lineTo(x1 + w1, yNaTela(p1));
+        ctx.lineTo(x2 + w2, yNaTela(p2)); ctx.lineTo(x2 - w2, yNaTela(p2)); ctx.closePath(); ctx.fill();
+      }
+    }
+  }
+
+  function desenharCarro(x, y, escala, cor, ehJogador) {
+    const w = 64 * escala, h = 96 * escala;
+    ctx.save();
+    ctx.translate(x, y);
+    // sombra
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.beginPath(); ctx.ellipse(0, h * 0.02, w * 0.6, h * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+    // carroceria
+    brilho(cor, 22 * escala + 6);
+    ctx.fillStyle = cor;
+    ctx.beginPath();
+    ctx.roundRect(-w / 2, -h, w, h, 12 * escala);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // vidro
+    ctx.fillStyle = "rgba(10,12,30,.85)";
+    ctx.beginPath(); ctx.roundRect(-w * 0.36, -h * (ehJogador ? 0.78 : 0.42), w * 0.72, h * 0.24, 6 * escala); ctx.fill();
+    // faróis (jogador) ou lanternas (outros carros)
+    ctx.fillStyle = ehJogador ? "#e8faff" : "#ffffff";
+    brilho(ehJogador ? "#22e0ff" : "#ff2e88", 14);
+    const fy = ehJogador ? -h + 4 * escala : -10 * escala;
+    ctx.fillRect(-w * 0.42, fy, w * 0.22, 5 * escala);
+    ctx.fillRect(w * 0.2, fy, w * 0.22, 5 * escala);
+    ctx.restore();
+  }
+
+  function desenharEnergia(x, y, escala) {
+    const r = 22 * escala;
+    ctx.save();
+    ctx.translate(x, y - r * 1.4);
+    brilho("#3cdc7c", 24);
+    ctx.fillStyle = "#3cdc7c";
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#062413";
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.15, -r * 0.65); ctx.lineTo(r * 0.35, -r * 0.65); ctx.lineTo(r * 0.05, -r * 0.05);
+    ctx.lineTo(r * 0.4, -r * 0.05); ctx.lineTo(-r * 0.3, r * 0.75); ctx.lineTo(-r * 0.05, r * 0.12);
+    ctx.lineTo(-r * 0.4, r * 0.12); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function desenhar() {
+    if (!L) return;
+    ctx.save();
+    if (tremor > 0) ctx.translate((Math.random() - 0.5) * 14 * tremor, (Math.random() - 0.5) * 14 * tremor);
+    desenharCeu();
+    desenharChao();
+    desenharPista();
+
+    // objetos do mais longe para o mais perto
+    const visiveis = objetos.filter((o) => o.z > 0).sort((a, b) => a.z - b.z);
+    for (const o of visiveis) {
+      const p = Math.min(1.1, o.z) ** 2;
+      const escala = Math.max(0.05, larguraPista(Math.min(1, p)) / 560);
+      const x = xDaFaixa(o.faixa, Math.min(1, p)), y = yNaTela(p);
+      if (o.tipo === "carro") desenharCarro(x, y, escala, o.cor, false);
+      else desenharEnergia(x, y, escala);
+    }
+
+    // carro do jogador
+    const pJ = P_JOGADOR;
+    const escalaJ = larguraPista(pJ) / 560;
+    const xJ = L / 2 - larguraPista(pJ) / 2 + larguraPista(pJ) * ((jogadorX + 0.5) / FAIXAS);
+    desenharCarro(xJ, yNaTela(pJ) + 30 * escalaJ, escalaJ * 1.05, turbo > 0 ? "#3cdc7c" : "#22e0ff", true);
+
+    // rastro do turbo
+    if (turbo > 0 && estado === "jogando") {
+      ctx.fillStyle = "rgba(60,220,124,.35)";
+      ctx.fillRect(xJ - 18 * escalaJ, yNaTela(pJ) + 30 * escalaJ, 36 * escalaJ, 60 * escalaJ);
+    }
+    ctx.restore();
+  }
+
+  /* ---------- Laço principal ---------- */
+  function quadro(agora) {
+    if (estado !== "jogando") { if (tremor > 0) { tremor -= 0.03; desenhar(); requestAnimationFrame(quadro); } return; }
+    const dt = Math.min(0.05, (agora - ultimoTempo) / 1000);   // segundos desde o último quadro
+    ultimoTempo = agora;
+    atualizar(dt);
+    desenhar();
+    requestAnimationFrame(quadro);
+  }
+
+  /* ---------- Começo ---------- */
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+  }
+  redimensionar();
+  mostrar("inicio");
+  window.__jogo = { get estado() { return estado; }, get pontos() { return pontuacao(); }, get faixa() { return faixaAlvo; } };  // usado nos testes
+})();
+</script>
+</body>
+</html>
