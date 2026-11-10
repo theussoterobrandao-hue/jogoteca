@@ -69,6 +69,7 @@ canvas:active { cursor: grabbing; }
   padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
   background: rgba(17, 26, 40, .78); backdrop-filter: blur(4px);
 }
+.tela { overflow-y: auto; place-items: safe center; grid-template-columns: minmax(0, 1fr); }
 .tela[hidden] { display: none; }
 .caixa {
   width: min(420px, 100%); padding: 26px 22px; border-radius: 18px; text-align: center;
@@ -93,6 +94,26 @@ canvas:active { cursor: grabbing; }
 .btn:active { transform: scale(.97); }
 .btn--cinza { margin-top: 10px; background: #282a3d; color: var(--texto); box-shadow: none; font-size: 15px; min-height: 44px; }
 .novo-recorde { color: var(--verde) !important; }
+
+/* Ranking Top 4 */
+.rank-titulo { margin: 4px 0 8px; font-size: 15px; font-weight: 900; color: var(--ouro); text-align: left; }
+.rank { list-style: none; margin: 0 0 14px; padding: 0; text-align: left; }
+.rank li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 6px; border-radius: 10px; background: #1d2a3d; font-weight: 800; }
+.rank .pos { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #2c3b52; font-size: 12px; font-weight: 900; }
+.rank li:nth-child(1) .pos { background: var(--ouro); color: #3a2a00; }
+.rank .nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .pts { font-weight: 900; font-variant-numeric: tabular-nums; }
+.rank li.voce { outline: 2px solid var(--ciano); }
+.rank li.vazio { justify-content: center; background: none; color: var(--suave); font-weight: 700; }
+.form-nome { margin: 0 0 14px; text-align: left; }
+.form-nome[hidden] { display: none; }
+.form-nome label { display: block; margin-bottom: 6px; color: var(--verde); font-size: 14px; font-weight: 800; }
+.form-nome div { display: flex; gap: 8px; }
+.form-nome input {
+  flex: 1; min-width: 0; height: 46px; padding: 0 12px; border-radius: 12px; border: 1px solid #3a4a62;
+  background: #111a28; color: var(--texto); font: 800 16px var(--f); user-select: text; -webkit-user-select: text;
+}
+.btn--salvar { width: auto; min-height: 46px; padding: 0 18px; font-size: 16px; }
 
 /* Tutorial: um passo por vez, com uma animação curta */
 .palco-tut {
@@ -164,6 +185,8 @@ canvas:active { cursor: grabbing; }
   <div class="caixa">
     <h1>CIRCUITO <em>NEON</em></h1>
     <p>Corrida noturna na pista de luz. Arraste para dirigir, pegue as moedas e desvie dos carros.</p>
+    <h3 class="rank-titulo">🏆 Top 4</h3>
+    <ol class="rank" id="rank-inicio"></ol>
     <button class="btn" type="button" id="btn-jogar">▶ Jogar</button>
     <button class="btn btn--cinza" type="button" id="btn-tutorial">Como jogar</button>
     <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
@@ -201,6 +224,12 @@ canvas:active { cursor: grabbing; }
     <div class="grande" id="fim-pontos">0</div>
     <div class="resumo"><span><i class="moeda-ico" aria-hidden="true"></i><b id="fim-moedas">0</b> moedas</span></div>
     <p id="fim-recorde">Recorde: 0</p>
+    <form class="form-nome" id="form-nome" hidden>
+      <label for="nome">Você entrou no Top 4! Seu nome:</label>
+      <div><input id="nome" maxlength="12" autocomplete="off" placeholder="Seu nome"><button class="btn btn--salvar" type="submit">Salvar</button></div>
+    </form>
+    <h3 class="rank-titulo">🏆 Top 4</h3>
+    <ol class="rank" id="rank-fim"></ol>
     <button class="btn" type="button" id="btn-denovo">↻ Jogar de novo</button>
     <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
   </div>
@@ -240,7 +269,59 @@ canvas:active { cursor: grabbing; }
   /* ---------- Coisas salvas no navegador ---------- */
   function ler(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
   function gravar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) {} }
-  let recorde = Number(ler("circuito-neon-recorde")) || 0;
+  /* ---------- Ranking (Top 4) ----------
+     Fica salvo neste navegador (localStorage): cada aparelho tem o seu ranking. */
+  const TAM_RANK = 4;
+  function lerRank() {
+    try { const r = JSON.parse(ler("circuito-neon-rank") || "[]"); return Array.isArray(r) ? r.slice(0, TAM_RANK) : []; }
+    catch (e) { return []; }
+  }
+  let rank = lerRank();
+  let pontosParaSalvar = null;   // partida que entrou no Top 4 e ainda não foi salva
+  function entraNoRank(pts) { return pts > 0 && (rank.length < TAM_RANK || pts > rank[rank.length - 1].pontos); }
+  function salvarNoRank(nome, pts, qtdMoedas) {
+    const item = { nome: nome, pontos: pts, moedas: qtdMoedas };
+    rank.push(item);
+    rank.sort((a, b) => b.pontos - a.pontos);
+    rank = rank.slice(0, TAM_RANK);
+    gravar("circuito-neon-rank", JSON.stringify(rank));
+    return item;
+  }
+  function mostrarRank(id, destaque) {
+    const lista = document.getElementById(id);
+    lista.replaceChildren();
+    if (!rank.length) {
+      const li = document.createElement("li");
+      li.className = "vazio"; li.textContent = "Ninguém no ranking ainda. Seja o primeiro!";
+      lista.append(li); return;
+    }
+    rank.forEach((r, i) => {
+      const li = document.createElement("li");
+      if (r === destaque) li.classList.add("voce");
+      const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = i + 1;
+      const nome = document.createElement("span"); nome.className = "nome"; nome.textContent = r.nome;
+      const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = r.pontos;
+      li.append(pos, nome, pts);
+      lista.append(li);
+    });
+  }
+  function salvarPendente() {
+    if (!pontosParaSalvar) return null;
+    const campo = document.getElementById("nome");
+    const nome = campo.value.trim().slice(0, 12) || "Jogador";
+    gravar("circuito-neon-nome", nome);
+    const item = salvarNoRank(nome, pontosParaSalvar.pts, pontosParaSalvar.moedas);
+    pontosParaSalvar = null;
+    document.getElementById("form-nome").hidden = true;
+    campo.blur();
+    mostrarRank("rank-fim", item);
+    mostrarRank("rank-inicio", null);
+    return item;
+  }
+  document.getElementById("form-nome").addEventListener("submit", (e) => { e.preventDefault(); salvarPendente(); });
+  window.addEventListener("pagehide", salvarPendente);   // se sair sem clicar em Salvar, salva mesmo assim
+
+  let recorde = Math.max(Number(ler("circuito-neon-recorde")) || 0, rank.length ? rank[0].pontos : 0);
   elRecorde.textContent = recorde;
 
   /* ---------- Estado da partida ---------- */
@@ -343,6 +424,7 @@ canvas:active { cursor: grabbing; }
   window.addEventListener("pointercancel", () => { arrasto = null; faixaAlvo = Math.round(faixaAlvo); });
 
   document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT") return;   // digitando o nome no ranking
     const k = e.key.toLowerCase();
     if (k === "arrowleft" || k === "a") { mover(-1); e.preventDefault(); }
     else if (k === "arrowright" || k === "d") { mover(1); e.preventDefault(); }
@@ -413,6 +495,7 @@ canvas:active { cursor: grabbing; }
   function esconderDica() { elDica.hidden = true; clearTimeout(timerDica); }
 
   function comecar() {
+    salvarPendente();
     faixaAlvo = 1; jogadorX = 1; velocidade = VEL_INICIAL;
     distancia = 0; bonus = 0; moedas = 0; turbo = 0; tremor = 0;
     objetos = []; proximoObjeto = 0.6; velAtual = VEL_INICIAL; ponteiro = 0; arrasto = null;
@@ -444,6 +527,10 @@ canvas:active { cursor: grabbing; }
     const r = document.getElementById("fim-recorde");
     r.textContent = bateuRecorde ? "Novo recorde!" : "Recorde: " + recorde;
     r.classList.toggle("novo-recorde", bateuRecorde);
+    pontosParaSalvar = entraNoRank(pts) ? { pts: pts, moedas: moedas } : null;
+    document.getElementById("form-nome").hidden = !pontosParaSalvar;
+    if (pontosParaSalvar) document.getElementById("nome").value = ler("circuito-neon-nome") || "";
+    mostrarRank("rank-fim", null);
     desenhar();
     setTimeout(() => mostrar("fim"), 450);
   }
@@ -734,6 +821,7 @@ canvas:active { cursor: grabbing; }
   }
   redimensionar();
   mostrar("inicio");
+  mostrarRank("rank-inicio", null);
   window.__jogo = {   // usado nos testes automáticos
     get estado() { return estado; }, get pontos() { return pontuacao(); }, get moedas() { return moedas; },
     get faixa() { return faixaAlvo; }, get x() { return jogadorX; }, get passo() { return passo; },
