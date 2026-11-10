@@ -4,25 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Circuito Neon · Jogoteca</title>
-<meta name="theme-color" content="#0c0d14">
+<meta name="theme-color" content="#111a28">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
 <style>
 /* =========================================================
-   CIRCUITO NEON — jogo de corrida da Jogoteca
+   CIRCUITO NEON — jogo de corrida da Jogoteca (paleta calma: noite azul)
    Arraste para dirigir, pegue moedas e energias, desvie dos carros.
    Tudo é desenhado num <canvas> com JavaScript.
    ========================================================= */
 :root {
-  --fundo: #0c0d14;
-  --painel: rgba(19, 20, 31, .88);
+  --fundo: #111a28;
+  --painel: rgba(24, 34, 50, .92);
   --texto: #f4f4fb;
   --suave: #a9abc9;
-  --rosa: #ff2e88;
-  --ciano: #22e0ff;
-  --verde: #3cdc7c;
-  --ouro: #ffc93c;
+  --rosa: #e8897a;
+  --ciano: #6fc8d6;
+  --verde: #7cc99a;
+  --ouro: #f2c46b;
   --sobre-verde: #062413;
   --f: "Nunito", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
@@ -67,18 +67,18 @@ canvas:active { cursor: grabbing; }
 .tela {
   position: fixed; inset: 0; z-index: 3; display: grid; place-items: center;
   padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
-  background: rgba(12, 13, 20, .72); backdrop-filter: blur(4px);
+  background: rgba(17, 26, 40, .78); backdrop-filter: blur(4px);
 }
 .tela[hidden] { display: none; }
 .caixa {
   width: min(420px, 100%); padding: 26px 22px; border-radius: 18px; text-align: center;
-  background: var(--painel); border: 1px solid #2e3047; box-shadow: 0 0 60px rgba(255, 46, 136, .25);
+  background: var(--painel); border: 1px solid #2e3047; box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
 }
 .caixa h1 {
   margin: 0 0 6px; font-size: 34px; font-weight: 900; letter-spacing: .02em; line-height: 1.05;
-  color: #fff; text-shadow: 0 0 12px var(--rosa), 0 0 28px var(--rosa);
+  color: #fff; text-shadow: 0 0 10px rgba(232, 137, 122, .45);
 }
-.caixa h1 em { font-style: normal; color: #fff; text-shadow: 0 0 12px var(--ciano), 0 0 28px var(--ciano); }
+.caixa h1 em { font-style: normal; color: #fff; text-shadow: 0 0 10px rgba(111, 200, 214, .45); }
 .caixa h2 { margin: 0 0 6px; font-size: 24px; font-weight: 900; }
 .caixa p { margin: 0 0 16px; color: var(--suave); font-weight: 700; line-height: 1.45; }
 .caixa .grande { font-size: 44px; font-weight: 900; color: #fff; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
@@ -87,8 +87,8 @@ canvas:active { cursor: grabbing; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
   min-height: 52px; border: 0; border-radius: 999px; cursor: pointer;
-  background: linear-gradient(180deg, var(--verde), #22b85f); color: var(--sobre-verde);
-  font: 900 18px var(--f); box-shadow: 0 6px 24px rgba(60, 220, 124, .35); text-decoration: none;
+  background: linear-gradient(180deg, var(--verde), #5fae80); color: var(--sobre-verde);
+  font: 900 18px var(--f); box-shadow: none; text-decoration: none;
 }
 .btn:active { transform: scale(.97); }
 .btn--cinza { margin-top: 10px; background: #282a3d; color: var(--texto); box-shadow: none; font-size: 15px; min-height: 44px; }
@@ -97,11 +97,11 @@ canvas:active { cursor: grabbing; }
 /* Tutorial: um passo por vez, com uma animação curta */
 .palco-tut {
   position: relative; height: 150px; margin: 4px 0 16px; border-radius: 14px; overflow: hidden;
-  background: linear-gradient(#1a0730, #0c0d14);
+  background: linear-gradient(#1d2b40, #111a28);
 }
 .pista-tut {
   position: absolute; left: 50%; bottom: 0; width: 210px; height: 150px; transform: translateX(-50%);
-  background: #11121c; clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+  background: #252f3e; clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
 }
 .pista-tut::before, .pista-tut::after { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: repeating-linear-gradient(transparent 0 10px, rgba(255,255,255,.5) 10px 22px); }
 .pista-tut::before { left: 44%; } .pista-tut::after { right: 44%; }
@@ -219,7 +219,7 @@ canvas:active { cursor: grabbing; }
   const ACELERACAO = 0.024;       // quanto acelera por segundo (chega no máximo em ~1 minuto)
   const KMH = 140;                // converte a velocidade do jogo em km/h para o velocímetro
   const PONTOS_MOEDA = 10;        // cada moeda vale 10 pontos
-  const CORES_CARRO = ["#ff2e88", "#ffc93c", "#a35cff", "#ff7a3c"];
+  const CORES_CARRO = ["#e8897a", "#c98bb9", "#9a8fd1", "#e0a36a"];   // nenhum carro dourado (dourado = moeda)
   const P_JOGADOR = 0.78;         // onde o jogador fica na pista (0 = horizonte, 1 = fundo da tela)
   const Z_JOGADOR = Math.sqrt(P_JOGADOR);
 
@@ -486,26 +486,26 @@ canvas:active { cursor: grabbing; }
   }
 
   /* ---------- Desenho ---------- */
-  function brilho(cor, tamanho) { ctx.shadowColor = cor; ctx.shadowBlur = tamanho; }
+  function brilho(cor, tamanho) { ctx.shadowColor = cor; ctx.shadowBlur = tamanho * 0.35; }   // brilho suave (cansa menos a vista)
 
   function desenharCeu() {
     const g = ctx.createLinearGradient(0, 0, 0, horizonte());
-    g.addColorStop(0, "#07060f"); g.addColorStop(1, "#2a0b4a");
+    g.addColorStop(0, "#132239"); g.addColorStop(1, "#3d5a7d");
     ctx.fillStyle = g; ctx.fillRect(0, 0, L, horizonte());
 
     // sol neon listrado
     const r = Math.min(L, A) * 0.16, cx = L / 2, cy = horizonte() - r * 0.15;
     const gs = ctx.createLinearGradient(0, cy - r, 0, cy + r);
-    gs.addColorStop(0, "#ffc93c"); gs.addColorStop(1, "#ff2e88");
+    gs.addColorStop(0, "#f2c46b"); gs.addColorStop(1, "#e8897a");
     ctx.save();
     ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.closePath(); ctx.clip();
-    brilho("#ff2e88", 40); ctx.fillStyle = gs; ctx.fillRect(cx - r, cy - r, r * 2, r);
-    ctx.shadowBlur = 0; ctx.fillStyle = "#2a0b4a";
+    brilho("#e8897a", 40); ctx.fillStyle = gs; ctx.fillRect(cx - r, cy - r, r * 2, r);
+    ctx.shadowBlur = 0; ctx.fillStyle = "#3d5a7d";
     for (let i = 0; i < 5; i++) { const y = cy - r * 0.08 - i * r * 0.17; ctx.fillRect(cx - r, y, r * 2, 2 + i * 0.6); }
     ctx.restore();
 
     // prédios ao fundo
-    ctx.fillStyle = "#140a26";
+    ctx.fillStyle = "#22344d";
     const base = horizonte();
     for (let i = 0; i < 18; i++) {
       const w = L / 18, h = 18 + ((i * 37) % 50);
@@ -515,9 +515,9 @@ canvas:active { cursor: grabbing; }
 
   function desenharChao() {
     const g = ctx.createLinearGradient(0, horizonte(), 0, A);
-    g.addColorStop(0, "#1a0730"); g.addColorStop(1, "#0c0d14");
+    g.addColorStop(0, "#1d2b40"); g.addColorStop(1, "#111a28");
     ctx.fillStyle = g; ctx.fillRect(0, horizonte(), L, A - horizonte());
-    ctx.strokeStyle = "rgba(163, 92, 255, .35)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255, 255, 255, .04)"; ctx.lineWidth = 1;
     for (let i = 0; i < 14; i++) {
       const y = yNaTela(((i / 14) + faixasLinha / 14) ** 2);
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(L, y); ctx.stroke();
@@ -526,14 +526,14 @@ canvas:active { cursor: grabbing; }
 
   function desenharPista() {
     const topoW = larguraPista(0), baseW = larguraPista(1);
-    ctx.fillStyle = "#11121c";
+    ctx.fillStyle = "#252f3e";
     ctx.beginPath();
     ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 + topoW / 2, horizonte());
     ctx.lineTo(L / 2 + baseW / 2, A); ctx.lineTo(L / 2 - baseW / 2, A); ctx.closePath(); ctx.fill();
 
-    ctx.lineWidth = 4; brilho("#22e0ff", 18); ctx.strokeStyle = "#22e0ff";
+    ctx.lineWidth = 4; brilho("#6fc8d6", 18); ctx.strokeStyle = "#6fc8d6";
     ctx.beginPath(); ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 - baseW / 2, A); ctx.stroke();
-    ctx.strokeStyle = "#ff2e88"; brilho("#ff2e88", 18);
+    ctx.strokeStyle = "#e8897a"; brilho("#e8897a", 18);
     ctx.beginPath(); ctx.moveTo(L / 2 + topoW / 2, horizonte()); ctx.lineTo(L / 2 + baseW / 2, A); ctx.stroke();
     ctx.shadowBlur = 0;
 
@@ -564,7 +564,7 @@ canvas:active { cursor: grabbing; }
     ctx.fillStyle = "rgba(10,12,30,.85)";
     ctx.beginPath(); ctx.roundRect(-w * 0.36, -h * (ehJogador ? 0.78 : 0.42), w * 0.72, h * 0.24, 6 * escala); ctx.fill();
     ctx.fillStyle = "#ffffff";
-    brilho(ehJogador ? "#22e0ff" : "#ff2e88", 14);
+    brilho(ehJogador ? "#6fc8d6" : "#e8897a", 14);
     const fy = ehJogador ? -h + 4 * escala : -10 * escala;
     ctx.fillRect(-w * 0.42, fy, w * 0.22, 5 * escala);
     ctx.fillRect(w * 0.2, fy, w * 0.22, 5 * escala);
@@ -575,8 +575,8 @@ canvas:active { cursor: grabbing; }
     const r = 22 * escala;
     ctx.save();
     ctx.translate(x, y - r * 1.4);
-    brilho("#3cdc7c", 24);
-    ctx.fillStyle = "#3cdc7c";
+    brilho("#7cc99a", 24);
+    ctx.fillStyle = "#7cc99a";
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#062413";
@@ -594,9 +594,9 @@ canvas:active { cursor: grabbing; }
     ctx.save();
     ctx.translate(x, y - r * 1.3);
     ctx.scale(0.3 + 0.7 * giro, 1);
-    brilho("#ffc93c", 18);
+    brilho("#f2c46b", 18);
     const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
-    g.addColorStop(0, "#fff3b0"); g.addColorStop(0.5, "#ffc93c"); g.addColorStop(1, "#c98a00");
+    g.addColorStop(0, "#fff3b0"); g.addColorStop(0.5, "#f2c46b"); g.addColorStop(1, "#c98a00");
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
@@ -623,10 +623,10 @@ canvas:active { cursor: grabbing; }
     const cy = celular ? 64 + r : A - r - 30;
     const kmh = Math.min(VEL_MOSTRADOR, ponteiro * KMH);
     const ang = (v) => INICIO + ARCO * (v / VEL_MOSTRADOR);
-    const cor = turbo > 0 ? "#3cdc7c" : "#22e0ff";
+    const cor = turbo > 0 ? "#7cc99a" : "#6fc8d6";
 
     ctx.save();
-    ctx.fillStyle = "rgba(12, 13, 20, .82)";
+    ctx.fillStyle = "rgba(17, 26, 40, .85)";
     ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.12)"; ctx.stroke();
 
@@ -634,7 +634,7 @@ canvas:active { cursor: grabbing; }
     ctx.lineWidth = r * 0.09;
     ctx.strokeStyle = "rgba(255,255,255,.08)";
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, INICIO, INICIO + ARCO); ctx.stroke();
-    ctx.strokeStyle = "rgba(255, 46, 136, .35)";
+    ctx.strokeStyle = "rgba(232, 137, 122, .35)";
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, ang(300), INICIO + ARCO); ctx.stroke();
     brilho(cor, 16); ctx.strokeStyle = cor;
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, INICIO, ang(kmh)); ctx.stroke();
@@ -644,22 +644,22 @@ canvas:active { cursor: grabbing; }
     for (let v = 0; v <= VEL_MOSTRADOR; v += 20) {
       const a = ang(v), grande = v % 100 === 0;
       const r1 = r * (grande ? 0.64 : 0.7), r2 = r * 0.76;
-      ctx.strokeStyle = v >= 300 ? "#ff2e88" : "rgba(255,255,255,.75)";
+      ctx.strokeStyle = v >= 300 ? "#e8897a" : "rgba(255,255,255,.75)";
       ctx.lineWidth = grande ? 3 : 1.5;
       ctx.beginPath();
       ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
       ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
       ctx.stroke();
       if (grande) {
-        ctx.fillStyle = v >= 300 ? "#ff2e88" : "#f4f4fb";
+        ctx.fillStyle = v >= 300 ? "#e8897a" : "#f4f4fb";
         ctx.font = "800 " + Math.round(r * 0.15) + "px Nunito, system-ui, sans-serif";
         ctx.fillText(String(v), cx + Math.cos(a) * r * 0.52, cy + Math.sin(a) * r * 0.52);
       }
     }
 
     const a = ang(kmh);
-    brilho("#ff2e88", 14);
-    ctx.strokeStyle = "#ff2e88"; ctx.lineWidth = Math.max(3, r * 0.05);
+    brilho("#e8897a", 14);
+    ctx.strokeStyle = "#e8897a"; ctx.lineWidth = Math.max(3, r * 0.05);
     ctx.beginPath();
     ctx.moveTo(cx - Math.cos(a) * r * 0.12, cy - Math.sin(a) * r * 0.12);
     ctx.lineTo(cx + Math.cos(a) * r * 0.8, cy + Math.sin(a) * r * 0.8);
@@ -672,7 +672,7 @@ canvas:active { cursor: grabbing; }
     ctx.font = "900 " + Math.round(r * 0.32) + "px Nunito, system-ui, sans-serif";
     ctx.fillText(String(Math.round(kmh)), cx, cy + r * 0.56);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = turbo > 0 ? "#3cdc7c" : "#a9abc9";
+    ctx.fillStyle = turbo > 0 ? "#7cc99a" : "#a9abc9";
     ctx.font = "800 " + Math.round(r * 0.13) + "px Nunito, system-ui, sans-serif";
     ctx.fillText(turbo > 0 ? "TURBO" : "km/h", cx, cy + r * 0.8);
     ctx.restore();
@@ -681,7 +681,7 @@ canvas:active { cursor: grabbing; }
   function desenhar() {
     if (!L) return;
     ctx.save();
-    if (tremor > 0) ctx.translate((Math.random() - 0.5) * 14 * tremor, (Math.random() - 0.5) * 14 * tremor);
+    if (tremor > 0) ctx.translate((Math.random() - 0.5) * 4 * tremor, (Math.random() - 0.5) * 4 * tremor);
     desenharCeu();
     desenharChao();
     desenharPista();
@@ -701,14 +701,14 @@ canvas:active { cursor: grabbing; }
     const pJ = P_JOGADOR;
     const escalaJ = larguraPista(pJ) / 560;
     const xJ = L / 2 - larguraPista(pJ) / 2 + larguraPista(pJ) * ((jogadorX + 0.5) / FAIXAS);
-    desenharCarro(xJ, yNaTela(pJ) + 30 * escalaJ, escalaJ * 1.05, turbo > 0 ? "#3cdc7c" : "#22e0ff", true);
+    desenharCarro(xJ, yNaTela(pJ) + 30 * escalaJ, escalaJ * 1.05, turbo > 0 ? "#7cc99a" : "#6fc8d6", true);
     if (turbo > 0 && estado === "jogando") {
       ctx.fillStyle = "rgba(60,220,124,.35)";
       ctx.fillRect(xJ - 18 * escalaJ, yNaTela(pJ) + 30 * escalaJ, 36 * escalaJ, 60 * escalaJ);
     }
     // flash dourado ao pegar moeda
     if (brilhoMoeda > 0) {
-      ctx.fillStyle = "rgba(255, 201, 60, " + (brilhoMoeda * 2.4).toFixed(2) + ")";
+      ctx.fillStyle = "rgba(242, 196, 107, " + (brilhoMoeda * 1.2).toFixed(2) + ")";
       ctx.beginPath(); ctx.arc(xJ, yNaTela(pJ) - 20 * escalaJ, 60 * escalaJ, 0, Math.PI * 2); ctx.fill();
     }
 
