@@ -93,6 +93,7 @@ canvas:active { cursor: grabbing; }
 .btn:active { transform: scale(.97); }
 .btn--cinza { margin-top: 10px; background: #282a3d; color: var(--texto); box-shadow: none; font-size: 15px; min-height: 44px; }
 .novo-recorde { color: var(--verde) !important; }
+.btn[hidden] { display: none; }
 .caixa .versao { margin: -8px 0 14px; font-size: 12px; opacity: .75; }
 
 /* Tutorial: um passo por vez, com uma animação curta */
@@ -171,7 +172,7 @@ canvas:active { cursor: grabbing; }
   <div class="caixa">
     <h1>CIRCUITO <em>NEON</em></h1>
     <p>Corrida noturna na pista de luz. Arraste para dirigir, pegue as moedas e desvie dos carros.</p>
-    <p class="versao">Versão 12 · 3 fases: 🌃 🏜️ 🎃</p>
+    <p class="versao">Versão 13 · 3 fases: 🌃 🏜️ 🎃</p>
     <button class="btn" type="button" id="btn-jogar">▶ Jogar</button>
     <button class="btn btn--cinza" type="button" id="btn-tutorial">Como jogar</button>
     <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
@@ -210,6 +211,7 @@ canvas:active { cursor: grabbing; }
     <div class="resumo"><span><i class="moeda-ico" aria-hidden="true"></i><b id="fim-moedas">0</b> moedas</span><span id="fim-fase">Fase 1</span></div>
     <p id="fim-recorde">Recorde: 0</p>
     <button class="btn" type="button" id="btn-denovo">↻ Jogar de novo</button>
+    <button class="btn btn--cinza" type="button" id="btn-fase" hidden>Jogar de novo nesta fase</button>
     <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
   </div>
 </section>
@@ -258,6 +260,7 @@ canvas:active { cursor: grabbing; }
   let jogadorX = 1;               // posição atual (anda suavemente até faixaAlvo)
   let velocidade = VEL_INICIAL;
   let distancia = 0;              // vira a pontuação
+  let distInicio = 0;             // distância pulada (atalho ou recomeço numa fase): não vale ponto
   let bonus = 0;                  // pontos das energias
   let moedas = 0;                 // moedas pegas nesta partida
   let turbo = 0;                  // segundos de turbo restantes
@@ -300,7 +303,9 @@ canvas:active { cursor: grabbing; }
   const ICONES_FASE = ["🌃", "🏜️", "🎃"];
   const FASE_INICIAL = Math.min(3, Math.max(1, Number(new URLSearchParams(location.search).get("fase")) || 1));
   function pularParaFase(n) {
-    distancia = [0, DIST_DESERTO, DIST_HALLOWEEN][n - 1];
+    const alvo = [0, DIST_DESERTO, DIST_HALLOWEEN][n - 1];
+    distInicio += alvo - distancia;   // o pulo não conta na pontuação
+    distancia = alvo;
     fase = n; mistura = 0; enfeites = [];
     avisarFase(ICONES_FASE[n - 1] + " Fase " + n + ": " + TEMAS[n - 1].nome);
   }
@@ -408,6 +413,7 @@ canvas:active { cursor: grabbing; }
   document.getElementById("btn-tutorial").addEventListener("click", abrirTutorial);
   document.getElementById("btn-tutorial-pausa").addEventListener("click", abrirTutorial);
   document.getElementById("btn-denovo").addEventListener("click", comecar);
+  document.getElementById("btn-fase").addEventListener("click", () => comecar(faseFim));
   document.getElementById("btn-reiniciar").addEventListener("click", comecar);
   document.getElementById("btn-continuar").addEventListener("click", continuar);
   document.getElementById("btn-pausa").addEventListener("click", () => { if (estado === "jogando") pausar(); else if (estado === "pausa") continuar(); });
@@ -462,13 +468,15 @@ canvas:active { cursor: grabbing; }
   let timerDica = null;
   function esconderDica() { elDica.hidden = true; clearTimeout(timerDica); }
 
-  function comecar() {
+  let faseFim = 1;   // fase alcançada na última partida
+  function comecar(faseInicio) {
+    const inicio = typeof faseInicio === "number" ? faseInicio : FASE_INICIAL;   // clique do botão manda um evento, não um número
     faixaAlvo = 1; jogadorX = 1; velocidade = VEL_INICIAL;
-    distancia = 0; bonus = 0; moedas = 0; turbo = 0; tremor = 0;
+    distancia = 0; distInicio = 0; bonus = 0; moedas = 0; turbo = 0; tremor = 0;
     objetos = []; proximoObjeto = 0.6; velAtual = VEL_INICIAL; ponteiro = 0; arrasto = null;
     fase = 1; mistura = 0; enfeites = []; proximoEnfeite = 0;
     document.getElementById("fase-aviso").hidden = true;
-    if (FASE_INICIAL > 1) pularParaFase(FASE_INICIAL);
+    if (inicio > 1) pularParaFase(inicio);
     elMoedas.textContent = "0";
     estado = "jogando";
     mostrar(null);
@@ -480,7 +488,7 @@ canvas:active { cursor: grabbing; }
   function pausar() { estado = "pausa"; arrasto = null; mostrar("pausa"); }
   function continuar() { estado = "jogando"; mostrar(null); ultimoTempo = performance.now(); requestAnimationFrame(quadro); }
 
-  function pontuacao() { return Math.floor(distancia * 10) + bonus + moedas * PONTOS_MOEDA; }
+  function pontuacao() { return Math.max(0, Math.floor((distancia - distInicio) * 10)) + bonus + moedas * PONTOS_MOEDA; }
 
   function fimDeJogo() {
     estado = "fim";
@@ -495,6 +503,10 @@ canvas:active { cursor: grabbing; }
     document.getElementById("fim-pontos").textContent = pts;
     document.getElementById("fim-moedas").textContent = moedas;
     document.getElementById("fim-fase").textContent = ["🌃 ", "🏜️ ", "🎃 "][fase - 1] + "Fase " + fase + ": " + TEMAS[fase - 1].nome;
+    faseFim = fase;
+    const btnFase = document.getElementById("btn-fase");
+    btnFase.hidden = fase === 1;
+    btnFase.textContent = ICONES_FASE[fase - 1] + " Jogar de novo na fase " + fase;
     document.getElementById("fase-aviso").hidden = true;
     const r = document.getElementById("fim-recorde");
     r.textContent = bateuRecorde ? "Novo recorde!" : "Recorde: " + recorde;
