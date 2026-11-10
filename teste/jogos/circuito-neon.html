@@ -215,8 +215,8 @@ canvas:active { cursor: grabbing; }
   /* ---------- Configuração do jogo ---------- */
   const FAIXAS = 3;               // pista com 3 faixas: 0, 1 e 2
   const VEL_INICIAL = 0.3;        // velocidade no começo: devagar (pista por segundo)
-  const VEL_MAX = 1.7;            // velocidade máxima
-  const ACELERACAO = 0.024;       // quanto acelera por segundo (chega no máximo em ~1 minuto)
+  const VEL_MAX = 1.3;            // velocidade máxima (mais baixa para não dar tontura)
+  const ACELERACAO = 0.018;       // quanto acelera por segundo (chega no máximo em ~1 minuto)
   const KMH = 140;                // converte a velocidade do jogo em km/h para o velocímetro
   const PONTOS_MOEDA = 10;        // cada moeda vale 10 pontos
   const CORES_CARRO = ["#e8897a", "#c98bb9", "#9a8fd1", "#e0a36a"];   // nenhum carro dourado (dourado = moeda)
@@ -336,10 +336,11 @@ canvas:active { cursor: grabbing; }
   function soltar(e) {
     if (!arrasto || e.pointerId !== arrasto.id) return;
     if (!arrasto.mexeu && estado === "jogando") mover(e.clientX < L / 2 ? -1 : 1);
+    else faixaAlvo = Math.round(faixaAlvo);   // ao soltar, o carro encaixa na faixa mais perto
     arrasto = null;
   }
   window.addEventListener("pointerup", soltar);
-  window.addEventListener("pointercancel", () => { arrasto = null; });
+  window.addEventListener("pointercancel", () => { arrasto = null; faixaAlvo = Math.round(faixaAlvo); });
 
   document.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
