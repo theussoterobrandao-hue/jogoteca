@@ -82,8 +82,8 @@ canvas:active { cursor: grabbing; }
 .caixa h2 { margin: 0 0 6px; font-size: 24px; font-weight: 900; }
 .caixa p { margin: 0 0 16px; color: var(--suave); font-weight: 700; line-height: 1.45; }
 .caixa .grande { font-size: 44px; font-weight: 900; color: #fff; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
-.resumo { display: flex; justify-content: center; gap: 10px; margin: 0 0 14px; }
-.resumo span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #1d1e2c; font-weight: 900; }
+.resumo { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.resumo span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #1d1e2c; font-weight: 900; white-space: nowrap; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
   min-height: 52px; border: 0; border-radius: 999px; cursor: pointer;
@@ -141,6 +141,12 @@ canvas:active { cursor: grabbing; }
   white-space: nowrap; pointer-events: none;
 }
 .dica[hidden] { display: none; }
+.fase-aviso {
+  position: fixed; left: 50%; top: 46%; z-index: 2; transform: translate(-50%, -50%);
+  padding: 14px 24px; border-radius: 16px; background: var(--painel); color: var(--ouro);
+  font-weight: 900; font-size: 22px; white-space: nowrap; pointer-events: none;
+}
+.fase-aviso[hidden] { display: none; }
 :focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
 </style>
@@ -199,13 +205,14 @@ canvas:active { cursor: grabbing; }
     <h1>BATEU!</h1>
     <p>Sua pontuação</p>
     <div class="grande" id="fim-pontos">0</div>
-    <div class="resumo"><span><i class="moeda-ico" aria-hidden="true"></i><b id="fim-moedas">0</b> moedas</span></div>
+    <div class="resumo"><span><i class="moeda-ico" aria-hidden="true"></i><b id="fim-moedas">0</b> moedas</span><span id="fim-fase">Fase 1</span></div>
     <p id="fim-recorde">Recorde: 0</p>
     <button class="btn" type="button" id="btn-denovo">↻ Jogar de novo</button>
     <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
   </div>
 </section>
 
+<div class="fase-aviso" id="fase-aviso" hidden></div>
 <div class="dica" id="dica" hidden>👆 Arraste para os lados</div>
 
 <script>
@@ -261,6 +268,30 @@ canvas:active { cursor: grabbing; }
   let velAtual = 0;               // velocidade deste quadro (com turbo)
   let ponteiro = 0;               // posição do ponteiro do velocímetro
   let brilhoMoeda = 0;            // flash rápido ao pegar moeda
+
+  /* ---------- Fases ----------
+     Fase 1: cidade à noite. Fase 2: deserto, depois de DIST_DESERTO de pista.
+     As cores mudam aos poucos: "mistura" vai de 0 (cidade) a 1 (deserto). */
+  const DIST_DESERTO = 30;        // 300 pontos de pista, uns 45 segundos de corrida
+  const TEMAS = [
+    { nome: "Cidade à noite", ceu1: "#132239", ceu2: "#3d5a7d", chao1: "#1d2b40", chao2: "#111a28", pista: "#252f3e",
+      borda1: "#6fc8d6", borda2: "#e8897a", fundo: "#22344d", sol1: "#f2c46b", sol2: "#e8897a" },
+    { nome: "Deserto", ceu1: "#3a2a4a", ceu2: "#c9805a", chao1: "#a8763f", chao2: "#5e3d24", pista: "#3a2f2b",
+      borda1: "#f2c46b", borda2: "#e8897a", fundo: "#7a4f3a", sol1: "#ffd58a", sol2: "#e0864f" }
+  ];
+  let fase = 1, mistura = 0;
+  let enfeites = [], proximoEnfeite = 0;   // cactos na beira da pista (só no deserto)
+  function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+  function tema(chave) {   // cor do tema atual, misturando cidade e deserto
+    const a = hexRgb(TEMAS[0][chave]), b = hexRgb(TEMAS[1][chave]);
+    return "rgb(" + a.map((v, i) => Math.round(v + (b[i] - v) * mistura)).join(", ") + ")";
+  }
+  let timerFase = null;
+  function avisarFase(texto) {
+    const el = document.getElementById("fase-aviso");
+    el.textContent = texto; el.hidden = false;
+    clearTimeout(timerFase); timerFase = setTimeout(() => { el.hidden = true; }, 2600);
+  }
 
   /* ---------- Tamanho do canvas (nítido em qualquer tela) ---------- */
   let L = 0, A = 0, dpr = 1;
@@ -372,7 +403,7 @@ canvas:active { cursor: grabbing; }
       texto: "Cada moeda dourada vale +10 pontos. Elas vêm em fileiras: fique na faixa delas para pegar todas.",
       cena: '<div class="pista-tut"></div><div class="moeda-tut"></div><div class="moeda-tut"></div><div class="moeda-tut"></div><div class="carro-tut"></div>' },
     { titulo: "Desvie dos carros",
-      texto: "Se encostar em outro carro, a corrida acaba. A pista começa devagar e fica cada vez mais rápida.",
+      texto: "Se encostar em outro carro, a corrida acaba. A pista começa devagar e fica cada vez mais rápida. Vá longe para chegar à fase 2, o deserto.",
       cena: '<div class="pista-tut"></div><div class="carro-tut inimigo"></div><div class="carro-tut"></div>' },
     { titulo: "Energia = turbo",
       texto: "A bolinha verde dá +50 pontos e 2 segundos de turbo: seu carro fica verde e atravessa os outros sem bater.",
@@ -416,6 +447,8 @@ canvas:active { cursor: grabbing; }
     faixaAlvo = 1; jogadorX = 1; velocidade = VEL_INICIAL;
     distancia = 0; bonus = 0; moedas = 0; turbo = 0; tremor = 0;
     objetos = []; proximoObjeto = 0.6; velAtual = VEL_INICIAL; ponteiro = 0; arrasto = null;
+    fase = 1; mistura = 0; enfeites = []; proximoEnfeite = 0;
+    document.getElementById("fase-aviso").hidden = true;
     elMoedas.textContent = "0";
     estado = "jogando";
     mostrar(null);
@@ -441,6 +474,8 @@ canvas:active { cursor: grabbing; }
     }
     document.getElementById("fim-pontos").textContent = pts;
     document.getElementById("fim-moedas").textContent = moedas;
+    document.getElementById("fim-fase").textContent = (fase === 2 ? "🏜️ " : "🌃 ") + "Fase " + fase + ": " + TEMAS[fase - 1].nome;
+    document.getElementById("fase-aviso").hidden = true;
     const r = document.getElementById("fim-recorde");
     r.textContent = bateuRecorde ? "Novo recorde!" : "Recorde: " + recorde;
     r.classList.toggle("novo-recorde", bateuRecorde);
@@ -458,6 +493,17 @@ canvas:active { cursor: grabbing; }
     if (brilhoMoeda > 0) brilhoMoeda -= dt;
 
     distancia += vel * dt;
+    if (fase === 1 && distancia >= DIST_DESERTO) { fase = 2; avisarFase("🏜️ Fase 2: Deserto"); }
+    if (fase === 2 && mistura < 1) mistura = Math.min(1, mistura + dt / 2.5);   // troca de cor em 2,5 s
+    if (fase === 2) {
+      proximoEnfeite -= dt;
+      if (proximoEnfeite <= 0) {
+        enfeites.push({ lado: Math.random() < 0.5 ? -1 : 1, z: 0, tam: 0.7 + Math.random() * 0.6 });
+        proximoEnfeite = 0.5 + Math.random() * 0.7;
+      }
+    }
+    for (const e of enfeites) e.z += vel * dt;
+    enfeites = enfeites.filter((e) => e.z < 1.1);
     faixasLinha = (faixasLinha + vel * dt * 4) % 1;
 
     // o carro desliza até onde o jogador mandou
@@ -491,32 +537,42 @@ canvas:active { cursor: grabbing; }
 
   function desenharCeu() {
     const g = ctx.createLinearGradient(0, 0, 0, horizonte());
-    g.addColorStop(0, "#132239"); g.addColorStop(1, "#3d5a7d");
+    g.addColorStop(0, tema("ceu1")); g.addColorStop(1, tema("ceu2"));
     ctx.fillStyle = g; ctx.fillRect(0, 0, L, horizonte());
 
     // sol neon listrado
     const r = Math.min(L, A) * 0.16, cx = L / 2, cy = horizonte() - r * 0.15;
     const gs = ctx.createLinearGradient(0, cy - r, 0, cy + r);
-    gs.addColorStop(0, "#f2c46b"); gs.addColorStop(1, "#e8897a");
+    gs.addColorStop(0, tema("sol1")); gs.addColorStop(1, tema("sol2"));
     ctx.save();
     ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.closePath(); ctx.clip();
     brilho("#e8897a", 40); ctx.fillStyle = gs; ctx.fillRect(cx - r, cy - r, r * 2, r);
-    ctx.shadowBlur = 0; ctx.fillStyle = "#3d5a7d";
+    ctx.shadowBlur = 0; ctx.fillStyle = tema("ceu2");
     for (let i = 0; i < 5; i++) { const y = cy - r * 0.08 - i * r * 0.17; ctx.fillRect(cx - r, y, r * 2, 2 + i * 0.6); }
     ctx.restore();
 
-    // prédios ao fundo
-    ctx.fillStyle = "#22344d";
+    // prédios ao fundo (somem no deserto)
     const base = horizonte();
-    for (let i = 0; i < 18; i++) {
+    ctx.save();
+    ctx.fillStyle = tema("fundo");
+    ctx.globalAlpha = 1 - mistura;
+    for (let i = 0; i < 18 && mistura < 1; i++) {
       const w = L / 18, h = 18 + ((i * 37) % 50);
       ctx.fillRect(i * w, base - h, w - 3, h);
     }
+    // dunas do deserto (aparecem aos poucos)
+    if (mistura > 0) {
+      ctx.globalAlpha = mistura;
+      ctx.beginPath(); ctx.moveTo(0, base);
+      for (let x = 0; x <= L + 20; x += 20) ctx.lineTo(x, base - 18 - Math.sin(x / L * 9) * 12 - Math.sin(x / L * 23 + 1) * 6);
+      ctx.lineTo(L, base); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
   }
 
   function desenharChao() {
     const g = ctx.createLinearGradient(0, horizonte(), 0, A);
-    g.addColorStop(0, "#1d2b40"); g.addColorStop(1, "#111a28");
+    g.addColorStop(0, tema("chao1")); g.addColorStop(1, tema("chao2"));
     ctx.fillStyle = g; ctx.fillRect(0, horizonte(), L, A - horizonte());
     ctx.strokeStyle = "rgba(255, 255, 255, .04)"; ctx.lineWidth = 1;
     for (let i = 0; i < 14; i++) {
@@ -527,14 +583,14 @@ canvas:active { cursor: grabbing; }
 
   function desenharPista() {
     const topoW = larguraPista(0), baseW = larguraPista(1);
-    ctx.fillStyle = "#252f3e";
+    ctx.fillStyle = tema("pista");
     ctx.beginPath();
     ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 + topoW / 2, horizonte());
     ctx.lineTo(L / 2 + baseW / 2, A); ctx.lineTo(L / 2 - baseW / 2, A); ctx.closePath(); ctx.fill();
 
-    ctx.lineWidth = 4; brilho("#6fc8d6", 18); ctx.strokeStyle = "#6fc8d6";
+    ctx.lineWidth = 4; brilho(tema("borda1"), 18); ctx.strokeStyle = tema("borda1");
     ctx.beginPath(); ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 - baseW / 2, A); ctx.stroke();
-    ctx.strokeStyle = "#e8897a"; brilho("#e8897a", 18);
+    ctx.strokeStyle = tema("borda2"); brilho(tema("borda2"), 18);
     ctx.beginPath(); ctx.moveTo(L / 2 + topoW / 2, horizonte()); ctx.lineTo(L / 2 + baseW / 2, A); ctx.stroke();
     ctx.shadowBlur = 0;
 
@@ -550,6 +606,17 @@ canvas:active { cursor: grabbing; }
         ctx.lineTo(x2 + w2, yNaTela(p2)); ctx.lineTo(x2 - w2, yNaTela(p2)); ctx.closePath(); ctx.fill();
       }
     }
+  }
+
+  // cacto na beira da pista: tronco e dois braços
+  function desenharCacto(x, y, s) {
+    const w = 12 * s, h = 52 * s;
+    ctx.fillStyle = "#5f8a5a";
+    ctx.beginPath(); ctx.roundRect(x - w / 2, y - h, w, h, w / 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(x - w * 1.8, y - h * 0.72, w * 0.75, h * 0.34, w * 0.37); ctx.fill();
+    ctx.fillRect(x - w * 1.8, y - h * 0.45, w * 1.4, w * 0.65);
+    ctx.beginPath(); ctx.roundRect(x + w * 1.05, y - h * 0.86, w * 0.75, h * 0.34, w * 0.37); ctx.fill();
+    ctx.fillRect(x + w * 0.4, y - h * 0.58, w * 1.4, w * 0.65);
   }
 
   function desenharCarro(x, y, escala, cor, ehJogador) {
@@ -686,6 +753,10 @@ canvas:active { cursor: grabbing; }
     desenharCeu();
     desenharChao();
     desenharPista();
+    for (const e of enfeites) {
+      const p = Math.min(1.05, e.z) ** 2, pp = Math.min(1, p);
+      desenharCacto(L / 2 + e.lado * larguraPista(pp) * 0.66, yNaTela(p), Math.max(0.05, larguraPista(pp) / 560) * e.tam * 1.6);
+    }
 
     // objetos do mais longe para o mais perto
     const visiveis = objetos.filter((o) => o.z > 0).sort((a, b) => a.z - b.z);
@@ -737,6 +808,7 @@ canvas:active { cursor: grabbing; }
   window.__jogo = {   // usado nos testes automáticos
     get estado() { return estado; }, get pontos() { return pontuacao(); }, get moedas() { return moedas; },
     get faixa() { return faixaAlvo; }, get x() { return jogadorX; }, get passo() { return passo; },
+    get fase() { return fase; }, get mistura() { return mistura; }, irPara(d) { distancia = d; },
     limpar() { objetos = []; proximoObjeto = 99; },
     colocarMoeda(f) { objetos.push({ tipo: "moeda", faixa: f, z: Z_JOGADOR - 0.15 }); }
   };
