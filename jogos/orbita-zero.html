@@ -1,1 +1,585 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Órbita Zero · Jogoteca</title>
+<meta name="theme-color" content="#0b1026">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   ÓRBITA ZERO — aventura espacial da Jogoteca
+   A nave gira em volta de um planeta. Toque para se soltar
+   e voe até a órbita do próximo mundo. Descubra ruínas.
+   Tudo é desenhado num <canvas> com JavaScript.
+   ========================================================= */
+:root {
+  --fundo: #0b1026;
+  --painel: rgba(22, 28, 58, .92);
+  --texto: #eef0ff;
+  --suave: #a7add6;
+  --anil: #7b84ff;
+  --ciano: #6fc8d6;
+  --verde: #7cc99a;
+  --ouro: #f2c46b;
+  --sobre-verde: #0c2a18;
+  --f: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fundo); color: var(--texto); font-family: var(--f); }
+body { touch-action: none; user-select: none; -webkit-user-select: none; }
+canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 
+/* Barra de cima */
+.hud {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+.hud a, .hud button {
+  pointer-events: auto; display: grid; place-items: center; width: 42px; height: 42px; flex: none;
+  border: 0; border-radius: 50%; background: var(--painel); color: var(--texto); text-decoration: none; cursor: pointer;
+}
+.hud svg { width: 20px; height: 20px; fill: currentColor; }
+.placar { flex: 1; display: flex; justify-content: center; gap: 6px; min-width: 0; }
+.placar > span {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 999px; background: var(--painel); font-weight: 900; font-size: 15px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.placar small { color: var(--suave); font-weight: 700; }
+.ruina-ico { width: 12px; height: 12px; flex: none; background: var(--ouro); transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 8px rgba(242, 196, 107, .6); }
+@media (max-width: 440px) {
+  .placar > span { padding: 6px 8px; font-size: 13px; }
+  .placar small { font-size: 10px; }
+  .placar .some-celular { display: none; }
+}
+
+/* Telas por cima do jogo */
+.tela {
+  position: fixed; inset: 0; z-index: 3; display: grid; place-items: safe center; grid-template-columns: minmax(0, 1fr);
+  overflow-y: auto;
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(11, 16, 38, .74); backdrop-filter: blur(4px);
+}
+.tela[hidden] { display: none; }
+.caixa {
+  width: min(420px, 100%); padding: 26px 22px; border-radius: 18px; text-align: center;
+  background: var(--painel); border: 1px solid #2f3768; box-shadow: 0 10px 40px rgba(0, 0, 0, .35);
+}
+.caixa h1 { margin: 0 0 6px; font-size: 34px; font-weight: 900; letter-spacing: .02em; line-height: 1.05; text-shadow: 0 0 10px rgba(123, 132, 255, .5); }
+.caixa h1 em { font-style: normal; color: var(--ciano); }
+.caixa h2 { margin: 0 0 6px; font-size: 24px; font-weight: 900; }
+.caixa p { margin: 0 0 16px; color: var(--suave); font-weight: 700; line-height: 1.45; }
+.caixa .grande { font-size: 44px; font-weight: 900; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.resumo { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.resumo span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #1c2350; font-weight: 900; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  min-height: 52px; border: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(180deg, var(--verde), #5fae80); color: var(--sobre-verde);
+  font: 900 18px var(--f); text-decoration: none;
+}
+.btn:active { transform: scale(.97); }
+.btn--cinza { margin-top: 10px; background: #262d5a; color: var(--texto); font-size: 15px; min-height: 44px; }
+.novo-recorde { color: var(--verde) !important; }
+
+/* Tutorial */
+.palco-tut { position: relative; height: 150px; margin: 4px 0 16px; border-radius: 14px; overflow: hidden; background: radial-gradient(circle at 70% 20%, #232a66, #0b1026 70%); }
+.pl { position: absolute; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c9cdff, #7b84ff 45%, #343b8f); }
+.pl--b { background: radial-gradient(circle at 35% 30%, #d6f4f7, #6fc8d6 45%, #2b6a75); }
+.orb { position: absolute; border: 2px dashed rgba(255, 255, 255, .22); border-radius: 50%; }
+.nave-tut { position: absolute; width: 30px; height: 26px; overflow: visible; }
+.giro { position: absolute; animation: girar 2.6s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.dedo { position: absolute; right: 26px; bottom: 18px; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 0 0 6px rgba(255,255,255,.2); animation: toque 1.3s ease-in-out infinite; }
+@keyframes toque { 50% { transform: scale(.75); } }
+.voo { position: absolute; left: 92px; top: 96px; animation: voar 2.4s ease-in-out infinite; }
+@keyframes voar { 0%, 15% { transform: translate(0, 0) rotate(-35deg); } 70%, 100% { transform: translate(120px, -62px) rotate(-35deg); } }
+.runa { position: absolute; width: 16px; height: 16px; background: var(--ouro); transform: rotate(45deg); border-radius: 3px; box-shadow: 0 0 14px var(--ouro); animation: brilhar 1.4s ease-in-out infinite; }
+@keyframes brilhar { 50% { opacity: .45; } }
+.pontos-tut { display: flex; justify-content: center; gap: 8px; margin: 0 0 14px; }
+.pontos-tut i { width: 8px; height: 8px; border-radius: 4px; background: #2f3768; transition: width .2s, background .2s; }
+.pontos-tut i.on { width: 22px; background: var(--ciano); }
+.pular { background: none; border: 0; color: var(--suave); font: 700 14px var(--f); margin-top: 10px; cursor: pointer; text-decoration: underline; }
+
+/* Avisos rápidos na tela (ruína descoberta, dica) */
+.aviso {
+  position: fixed; left: 50%; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); z-index: 2; transform: translateX(-50%);
+  padding: 10px 18px; border-radius: 999px; background: var(--painel); font-weight: 900; font-size: 15px;
+  white-space: nowrap; pointer-events: none;
+}
+.aviso[hidden] { display: none; }
+.aviso--ouro { color: var(--ouro); }
+:focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<canvas id="tela" aria-label="Espaço do jogo Órbita Zero. Toque para soltar a nave."></canvas>
+
+<div class="hud">
+  <a href="../#jogo-orbita-zero" aria-label="Voltar para a Jogoteca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg></a>
+  <div class="placar">
+    <span><small>MUNDOS</small><b id="mundos">0</b></span>
+    <span aria-label="Ruínas"><i class="ruina-ico" aria-hidden="true"></i><b id="ruinas">0</b></span>
+    <span><small>REC<span class="some-celular">ORDE</span></small><b id="recorde">0</b></span>
+  </div>
+  <button type="button" id="btn-pausa" aria-label="Pausar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg></button>
+</div>
+
+<!-- Tela inicial -->
+<section class="tela" id="tela-inicio">
+  <div class="caixa">
+    <h1>ÓRBITA <em>ZERO</em></h1>
+    <p>Viaje entre mundos pulando de órbita em órbita, descubra ruínas cósmicas e explore um universo cheio de mistérios.</p>
+    <button class="btn" type="button" id="btn-jogar">▶ Jogar</button>
+    <button class="btn btn--cinza" type="button" id="btn-tutorial">Como jogar</button>
+    <a class="btn btn--cinza" href="../#jogo-orbita-zero">Voltar para a Jogoteca</a>
+  </div>
+</section>
+
+<!-- Tutorial (aparece sozinho na primeira vez) -->
+<section class="tela" id="tela-tutorial" hidden aria-live="polite">
+  <div class="caixa">
+    <div class="palco-tut" id="palco-tut" aria-hidden="true"></div>
+    <h2 id="tut-titulo">Toque para se soltar</h2>
+    <p id="tut-texto">Sua nave gira em volta do planeta.</p>
+    <div class="pontos-tut" id="tut-pontos" aria-hidden="true"><i></i><i></i><i></i></div>
+    <button class="btn" type="button" id="btn-tut-proximo">Próximo</button>
+    <button class="pular" type="button" id="btn-tut-pular">Pular tutorial</button>
+  </div>
+</section>
+
+<!-- Pausa -->
+<section class="tela" id="tela-pausa" hidden>
+  <div class="caixa">
+    <h1>PAUSA</h1>
+    <p>O universo espera por você.</p>
+    <button class="btn" type="button" id="btn-continuar">▶ Continuar</button>
+    <button class="btn btn--cinza" type="button" id="btn-reiniciar">Começar de novo</button>
+    <button class="btn btn--cinza" type="button" id="btn-tutorial-pausa">Como jogar</button>
+  </div>
+</section>
+
+<!-- Fim de jogo -->
+<section class="tela" id="tela-fim" hidden>
+  <div class="caixa">
+    <h1>PERDIDO NO ESPAÇO</h1>
+    <p>Sua pontuação</p>
+    <div class="grande" id="fim-pontos">0</div>
+    <div class="resumo">
+      <span>🪐 <b id="fim-mundos">0</b> mundos</span>
+      <span><i class="ruina-ico" aria-hidden="true"></i> <b id="fim-ruinas">0</b> ruínas</span>
+    </div>
+    <p id="fim-recorde">Recorde: 0</p>
+    <button class="btn" type="button" id="btn-denovo">↻ Jogar de novo</button>
+    <a class="btn btn--cinza" href="../#jogo-orbita-zero">Voltar para a Jogoteca</a>
+  </div>
+</section>
+
+<div class="aviso" id="aviso" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Configuração ---------- */
+  const VEL_NAVE = 380;          // velocidade da nave voando (pixels por segundo)
+  const TEMPO_MAX_VOO = 3.2;     // segundos voando sem achar órbita = perdido
+  const PONTOS_MUNDO = 10;       // cada mundo novo
+  const PONTOS_RUINA = 30;       // cada ruína descoberta
+  const CORES = ["#7b84ff", "#6fc8d6", "#c98bb9", "#e0a36a", "#7cc99a", "#9a8fd1"];
+
+  /* ---------- Elementos ---------- */
+  const canvas = document.getElementById("tela");
+  const ctx = canvas.getContext("2d");
+  const elMundos = document.getElementById("mundos");
+  const elRuinas = document.getElementById("ruinas");
+  const elRecorde = document.getElementById("recorde");
+  const elAviso = document.getElementById("aviso");
+  const telas = {
+    inicio: document.getElementById("tela-inicio"),
+    tutorial: document.getElementById("tela-tutorial"),
+    pausa: document.getElementById("tela-pausa"),
+    fim: document.getElementById("tela-fim")
+  };
+
+  function ler(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
+  function gravar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) {} }
+  let recorde = Number(ler("orbita-zero-recorde")) || 0;
+  elRecorde.textContent = recorde;
+
+  /* ---------- Estado ---------- */
+  let estado = "inicio";         // inicio | tutorial | jogando | pausa | fim
+  let planetas = [];
+  let atual = null;              // planeta onde a nave está em órbita (null = voando)
+  let deOnde = null;             // planeta de onde a nave saiu
+  const nave = { x: 0, y: 0, vx: 0, vy: -1, ang: 0 };
+  let camY = 0;                  // altura da câmera no mundo
+  let mundos = 0, ruinas = 0, criados = 0;
+  let tempoVoo = 0, relogio = 0, ultimoTempo = 0;
+  let rastro = [];
+  let estrelas = [];
+
+  /* ---------- Tela ---------- */
+  let L = 0, A = 0, W = 0, x0 = 0;
+  function redimensionar() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    L = window.innerWidth; A = window.innerHeight;
+    W = Math.min(L, 520);        // largura da "faixa" onde ficam os planetas
+    x0 = (L - W) / 2;
+    canvas.width = Math.round(L * dpr); canvas.height = Math.round(A * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    estrelas = [];
+    for (let i = 0; i < 140; i++) {
+      estrelas.push({ x: Math.random() * L, y: Math.random() * A, p: 0.05 + Math.random() * 0.25, t: Math.random() < 0.85 ? 1 : 2, a: 0.3 + Math.random() * 0.6 });
+    }
+    if (estado !== "jogando") desenhar();
+  }
+  window.addEventListener("resize", redimensionar);
+
+  const sortear = (lista) => lista[Math.floor(Math.random() * lista.length)];
+
+  /* ---------- Criar planetas ----------
+     Quanto mais longe, menores, mais rápidos e mais afastados.
+     Depois do 12º mundo alguns planetas passam a se mexer. */
+  function novoPlaneta(y, n) {
+    const r = Math.max(18, 36 - n * 0.5) + Math.random() * 8;
+    const R = r + 34;                                       // raio da órbita
+    const mov = n >= 12 ? 18 + Math.random() * Math.min(40, n * 1.5) : 0;
+    const margem = Math.min(W / 2 - 10, R + 6 + mov);
+    const baseX = margem + Math.random() * Math.max(0, W - 2 * margem);
+    return {
+      x: baseX, baseX: baseX, y: y, r: r, R: R,
+      w: Math.min(2.5, 1.4 + n * 0.04) * (Math.random() < 0.5 ? -1 : 1),   // velocidade da órbita
+      cor: sortear(CORES), anel: Math.random() < 0.3,
+      ruina: n > 0 && Math.random() < 0.35, giro: Math.random() * 6.28,
+      visitado: false, mov: mov, fase: Math.random() * 6.28
+    };
+  }
+  function garantirPlanetas() {
+    let ultimo = planetas[planetas.length - 1];
+    while (ultimo.y > camY - A * 0.8) {
+      const dist = 200 + Math.min(90, criados * 3) + Math.random() * 60;
+      ultimo = novoPlaneta(ultimo.y - dist, criados++);
+      planetas.push(ultimo);
+    }
+    planetas = planetas.filter((p) => p === atual || p.y - camY < A + 300);
+  }
+
+  /* ---------- Controles: tocar/clicar em qualquer lugar solta a nave ---------- */
+  function soltar() {
+    if (estado !== "jogando" || !atual) return;
+    deOnde = atual; atual = null; tempoVoo = 0;
+    esconderAviso();
+  }
+  window.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button, a")) return;
+    soltar();
+  });
+  document.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (estado === "jogando" && (k === " " || k === "enter" || k === "arrowup" || k === "w")) { e.preventDefault(); soltar(); }
+    else if (k === "p" || k === "escape") { if (estado === "jogando") pausar(); else if (estado === "pausa") continuar(); }
+    else if ((k === "enter" || k === " ") && (estado === "inicio" || estado === "fim" || estado === "pausa")) {
+      e.preventDefault();
+      if (estado === "pausa") continuar(); else iniciarOuTutorial();
+    }
+  });
+
+  function iniciarOuTutorial() { if (!ler("orbita-zero-tutorial")) abrirTutorial(); else comecar(); }
+  document.getElementById("btn-jogar").addEventListener("click", iniciarOuTutorial);
+  document.getElementById("btn-tutorial").addEventListener("click", abrirTutorial);
+  document.getElementById("btn-tutorial-pausa").addEventListener("click", abrirTutorial);
+  document.getElementById("btn-denovo").addEventListener("click", comecar);
+  document.getElementById("btn-reiniciar").addEventListener("click", comecar);
+  document.getElementById("btn-continuar").addEventListener("click", continuar);
+  document.getElementById("btn-pausa").addEventListener("click", () => { if (estado === "jogando") pausar(); else if (estado === "pausa") continuar(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && estado === "jogando") pausar(); });
+
+  /* ---------- Tutorial ---------- */
+  // a mesma nave do jogo, em SVG, para o tutorial
+  const NAVE_SVG = '<svg class="nave-tut" viewBox="-14 -13 30 26" aria-hidden="true"><path d="M-9 -3L-17 0L-9 3Z" fill="#f2c46b"/><path d="M-1 -5L-12 -12L-8 -4Z M-1 5L-12 12L-8 4Z" fill="#7b84ff"/><path d="M15 0Q6 -7 -10 -5L-10 5Q6 7 15 0Z" fill="#eef0ff"/><circle cx="4" cy="0" r="2.8" fill="#6fc8d6"/></svg>';
+  const PASSOS = [
+    { titulo: "Toque para se soltar",
+      texto: "Sua nave gira em volta do planeta. A linha tracejada mostra para onde ela vai: toque em qualquer lugar da tela (ou aperte espaço) e ela sai voando reto nessa direção.",
+      cena: '<div class="orb" style="left:calc(50% - 58px);top:17px;width:116px;height:116px"></div><div class="pl" style="left:calc(50% - 30px);top:45px;width:60px;height:60px"></div><div class="giro" style="left:calc(50% - 58px);top:17px;width:116px;height:116px">' + NAVE_SVG.replace('class="nave-tut"', 'class="nave-tut" style="left:96px;top:45px;transform:rotate(90deg)"') + '</div><div class="dedo"></div>' },
+    { titulo: "Entre em outra órbita",
+      texto: "Solte na hora certa para passar perto de outro planeta: a nave entra na órbita dele sozinha. Se errar e sair da tela, você se perde no espaço.",
+      cena: '<div class="orb" style="left:40px;top:72px;width:90px;height:90px"></div><div class="pl" style="left:62px;top:94px;width:46px;height:46px"></div><div class="orb" style="right:40px;top:2px;width:90px;height:90px"></div><div class="pl pl--b" style="right:62px;top:24px;width:46px;height:46px"></div><div class="voo">' + NAVE_SVG + '</div>' },
+    { titulo: "Descubra ruínas",
+      texto: "Cada mundo novo vale +10. Planetas com o brilho dourado têm ruínas cósmicas: entre na órbita deles para descobrir e ganhar +30.",
+      cena: '<div class="orb" style="left:calc(50% - 58px);top:17px;width:116px;height:116px"></div><div class="pl" style="left:calc(50% - 34px);top:41px;width:68px;height:68px;background:radial-gradient(circle at 35% 30%, #f6dcc0, #e0a36a 45%, #7a5226)"></div><div class="runa" style="left:calc(50% + 4px);top:52px"></div>' }
+  ];
+  let passo = 0, voltarPara = "jogar";
+  function mostrarPasso() {
+    const p = PASSOS[passo];
+    const palco = document.getElementById("palco-tut");
+    palco.innerHTML = p.cena;
+    document.getElementById("tut-titulo").textContent = p.titulo;
+    document.getElementById("tut-texto").textContent = p.texto;
+    document.querySelectorAll("#tut-pontos i").forEach((el, i) => el.classList.toggle("on", i === passo));
+    document.getElementById("btn-tut-proximo").textContent = passo === PASSOS.length - 1 ? "▶ Decolar!" : "Próximo";
+  }
+  function abrirTutorial() {
+    voltarPara = estado === "pausa" ? "pausa" : "jogar";
+    estado = "tutorial"; passo = 0;
+    mostrarPasso(); mostrar("tutorial");
+  }
+  function fecharTutorial() {
+    gravar("orbita-zero-tutorial", "visto");
+    if (voltarPara === "pausa") { estado = "pausa"; mostrar("pausa"); } else comecar();
+  }
+  document.getElementById("btn-tut-proximo").addEventListener("click", () => {
+    if (passo < PASSOS.length - 1) { passo++; mostrarPasso(); } else fecharTutorial();
+  });
+  document.getElementById("btn-tut-pular").addEventListener("click", fecharTutorial);
+
+  /* ---------- Fluxo ---------- */
+  function mostrar(qual) { Object.entries(telas).forEach(([nome, el]) => { el.hidden = nome !== qual; }); }
+  let timerAviso = null;
+  function avisar(texto, ouro) {
+    elAviso.textContent = texto;
+    elAviso.classList.toggle("aviso--ouro", !!ouro);
+    elAviso.hidden = false;
+    clearTimeout(timerAviso); timerAviso = setTimeout(esconderAviso, ouro ? 1600 : 4000);
+  }
+  function esconderAviso() { elAviso.hidden = true; clearTimeout(timerAviso); }
+
+  function comecar() {
+    planetas = []; criados = 0; mundos = 0; ruinas = 0; rastro = []; relogio = 0; tempoVoo = 0;
+    const p0 = novoPlaneta(0, criados++);
+    p0.x = p0.baseX = W / 2; p0.ruina = false; p0.visitado = true; p0.w = 1.4;
+    planetas.push(p0);
+    atual = p0; deOnde = null;
+    nave.ang = Math.PI / 2;
+    camY = p0.y - A * 0.62;
+    garantirPlanetas();
+    elMundos.textContent = "0"; elRuinas.textContent = "0";
+    estado = "jogando";
+    mostrar(null);
+    avisar("👆 Toque para soltar a nave", false);
+    ultimoTempo = performance.now();
+    requestAnimationFrame(quadro);
+  }
+  function pausar() { estado = "pausa"; mostrar("pausa"); }
+  function continuar() { estado = "jogando"; mostrar(null); ultimoTempo = performance.now(); requestAnimationFrame(quadro); }
+  function pontuacao() { return mundos * PONTOS_MUNDO + ruinas * PONTOS_RUINA; }
+
+  function perdeu() {
+    estado = "fim";
+    esconderAviso();
+    const pts = pontuacao();
+    const bateuRecorde = pts > recorde;
+    if (bateuRecorde) { recorde = pts; gravar("orbita-zero-recorde", String(recorde)); elRecorde.textContent = recorde; }
+    document.getElementById("fim-pontos").textContent = pts;
+    document.getElementById("fim-mundos").textContent = mundos;
+    document.getElementById("fim-ruinas").textContent = ruinas;
+    const r = document.getElementById("fim-recorde");
+    r.textContent = bateuRecorde ? "Novo recorde!" : "Recorde: " + recorde;
+    r.classList.toggle("novo-recorde", bateuRecorde);
+    desenhar();
+    setTimeout(() => mostrar("fim"), 500);
+  }
+
+  /* ---------- Entrar na órbita de um planeta ---------- */
+  function capturar(q) {
+    atual = q; tempoVoo = 0;
+    const dx = nave.x - q.x, dy = nave.y - q.y;
+    nave.ang = Math.atan2(dy, dx);
+    // gira para o lado em que a nave já vinha (produto vetorial)
+    q.w = Math.abs(q.w) * (dx * nave.vy - dy * nave.vx >= 0 ? 1 : -1);
+    if (!q.visitado) {
+      q.visitado = true; mundos++;
+      elMundos.textContent = mundos;
+      if (q.ruina) { q.ruina = false; ruinas++; elRuinas.textContent = ruinas; avisar("Ruína descoberta! +" + PONTOS_RUINA, true); }
+    }
+  }
+
+  /* ---------- Atualizar a cada quadro ---------- */
+  function atualizar(dt) {
+    relogio += dt;
+    for (const p of planetas) {
+      if (p.mov) p.x = p.baseX + Math.sin(relogio * 0.7 + p.fase) * p.mov;
+      p.giro += dt * 0.4;
+    }
+    let alvoCam;
+    if (atual) {
+      nave.ang += atual.w * dt;
+      nave.x = atual.x + Math.cos(nave.ang) * atual.R;
+      nave.y = atual.y + Math.sin(nave.ang) * atual.R;
+      const lado = Math.sign(atual.w);
+      nave.vx = -Math.sin(nave.ang) * lado;   // direção para onde a nave aponta (tangente)
+      nave.vy = Math.cos(nave.ang) * lado;
+      alvoCam = atual.y - A * 0.62;
+    } else {
+      tempoVoo += dt;
+      nave.x += nave.vx * VEL_NAVE * dt;
+      nave.y += nave.vy * VEL_NAVE * dt;
+      for (const q of planetas) {
+        if (q === deOnde && tempoVoo < 0.5) continue;
+        if (Math.hypot(nave.x - q.x, nave.y - q.y) <= q.R + 4) { capturar(q); break; }
+      }
+      alvoCam = nave.y - A * 0.55;
+      const sx = x0 + nave.x, sy = nave.y - camY;
+      if (!atual && (sx < -30 || sx > L + 30 || sy > A + 30 || sy < -60 || tempoVoo > TEMPO_MAX_VOO)) { perdeu(); return; }
+    }
+    camY += (alvoCam - camY) * Math.min(1, dt * 2.5);   // câmera suave
+    rastro.push({ x: nave.x, y: nave.y });
+    if (rastro.length > 26) rastro.shift();
+    garantirPlanetas();
+  }
+
+  /* ---------- Desenho ---------- */
+  function desenharFundo() {
+    const g = ctx.createLinearGradient(0, 0, 0, A);
+    g.addColorStop(0, "#0b1026"); g.addColorStop(1, "#171c45");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, L, A);
+    // nebulosas paradas
+    const n1 = ctx.createRadialGradient(L * 0.2, A * 0.3, 0, L * 0.2, A * 0.3, Math.max(L, A) * 0.5);
+    n1.addColorStop(0, "rgba(90, 80, 220, .16)"); n1.addColorStop(1, "rgba(90, 80, 220, 0)");
+    ctx.fillStyle = n1; ctx.fillRect(0, 0, L, A);
+    const n2 = ctx.createRadialGradient(L * 0.85, A * 0.75, 0, L * 0.85, A * 0.75, Math.max(L, A) * 0.45);
+    n2.addColorStop(0, "rgba(111, 200, 214, .10)"); n2.addColorStop(1, "rgba(111, 200, 214, 0)");
+    ctx.fillStyle = n2; ctx.fillRect(0, 0, L, A);
+    // estrelas (as mais distantes andam bem devagar)
+    for (const s of estrelas) {
+      const y = (((s.y - camY * s.p) % A) + A) % A;
+      ctx.fillStyle = "rgba(238, 240, 255, " + s.a + ")";
+      ctx.fillRect(s.x, y, s.t, s.t);
+    }
+  }
+
+  function desenharPlaneta(p) {
+    // órbita tracejada (mais forte no planeta atual)
+    ctx.save();
+    ctx.setLineDash([4, 8]);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = p === atual ? "rgba(255, 255, 255, .35)" : (p.visitado ? "rgba(255, 255, 255, .08)" : "rgba(255, 255, 255, .18)");
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.R, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+
+    // anel atrás
+    if (p.anel) {
+      ctx.strokeStyle = "rgba(238, 240, 255, .35)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r * 1.7, p.r * 0.45, -0.35, Math.PI, Math.PI * 2); ctx.stroke();
+    }
+    // corpo
+    const g = ctx.createRadialGradient(p.x - p.r * 0.35, p.y - p.r * 0.4, p.r * 0.1, p.x, p.y, p.r);
+    g.addColorStop(0, "rgba(255, 255, 255, .85)"); g.addColorStop(0.25, p.cor); g.addColorStop(1, "#151a3a");
+    ctx.shadowColor = p.cor; ctx.shadowBlur = 14;
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // anel na frente
+    if (p.anel) {
+      ctx.strokeStyle = "rgba(238, 240, 255, .5)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r * 1.7, p.r * 0.45, -0.35, 0, Math.PI); ctx.stroke();
+    }
+    // ruína: losango dourado que brilha na superfície
+    if (p.ruina) {
+      // aura dourada em volta do planeta: dá para ver de longe que tem ruína
+      ctx.strokeStyle = "rgba(242, 196, 107, " + (0.45 + Math.sin(relogio * 3) * 0.2).toFixed(2) + ")";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 6, 0, Math.PI * 2); ctx.stroke();
+      const rx = p.x + Math.cos(p.giro) * p.r * 0.4, ry = p.y + Math.sin(p.giro) * p.r * 0.4;
+      const s = p.r * 0.38 + Math.sin(relogio * 4) * 1.5;
+      ctx.save();
+      ctx.translate(rx, ry); ctx.rotate(Math.PI / 4);
+      ctx.shadowColor = "#f2c46b"; ctx.shadowBlur = 16;
+      ctx.fillStyle = "#f2c46b";
+      ctx.fillRect(-s / 2, -s / 2, s, s);
+      ctx.restore();
+    }
+  }
+
+  function desenharNave() {
+    // rastro
+    if (rastro.length > 1) {
+      ctx.strokeStyle = "rgba(111, 200, 214, .35)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(rastro[0].x, rastro[0].y);
+      for (const r of rastro) ctx.lineTo(r.x, r.y);
+      ctx.stroke();
+    }
+    // linha de mira: mostra para onde a nave vai voar quando soltar
+    if (atual && estado === "jogando") {
+      ctx.save();
+      ctx.setLineDash([3, 9]); ctx.strokeStyle = "rgba(242, 196, 107, .55)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(nave.x, nave.y); ctx.lineTo(nave.x + nave.vx * 260, nave.y + nave.vy * 260); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.translate(nave.x, nave.y);
+    ctx.rotate(Math.atan2(nave.vy, nave.vx));
+    ctx.scale(1.3, 1.3);   // nave um pouco maior para ver bem no celular
+    // fogo do motor: grande voando, pequeno parado em órbita
+    const fogo = atual ? 6 : 14 + Math.random() * 6;
+    ctx.fillStyle = "rgba(242, 196, 107, .9)";
+    ctx.beginPath(); ctx.moveTo(-9, -3); ctx.lineTo(-9 - fogo, 0); ctx.lineTo(-9, 3); ctx.closePath(); ctx.fill();
+    // asas
+    ctx.fillStyle = "#7b84ff";
+    ctx.beginPath(); ctx.moveTo(-1, -5); ctx.lineTo(-12, -12); ctx.lineTo(-8, -4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-1, 5); ctx.lineTo(-12, 12); ctx.lineTo(-8, 4); ctx.closePath(); ctx.fill();
+    // corpo da nave
+    ctx.shadowColor = "#6fc8d6"; ctx.shadowBlur = 10;
+    ctx.fillStyle = "#eef0ff";
+    ctx.beginPath(); ctx.moveTo(15, 0); ctx.quadraticCurveTo(6, -7, -10, -5); ctx.lineTo(-10, 5); ctx.quadraticCurveTo(6, 7, 15, 0); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    // janelinha
+    ctx.fillStyle = "#6fc8d6";
+    ctx.beginPath(); ctx.arc(4, 0, 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function desenhar() {
+    if (!L) return;
+    desenharFundo();
+    if (!planetas.length) return;
+    ctx.save();
+    ctx.translate(x0, -camY);
+    for (const p of planetas) desenharPlaneta(p);
+    desenharNave();
+    ctx.restore();
+  }
+
+  /* ---------- Laço principal ---------- */
+  function quadro(agora) {
+    if (estado !== "jogando") return;
+    const dt = Math.min(0.05, (agora - ultimoTempo) / 1000);
+    ultimoTempo = agora;
+    atualizar(dt);
+    desenhar();
+    requestAnimationFrame(quadro);
+  }
+
+  redimensionar();
+  mostrar("inicio");
+  window.__jogo = {   // usado nos testes automáticos
+    get estado() { return estado; }, get mundos() { return mundos; }, get ruinas() { return ruinas; },
+    get pontos() { return pontuacao(); }, get orbitando() { return !!atual; },
+    // aponta a nave para o próximo planeta não visitado e solta (para testar)
+    mirarESoltar() {
+      const alvo = planetas.find((p) => !p.visitado);
+      if (!alvo || !atual) return false;
+      const lado = Math.sign(atual.w);
+      // ângulo em que a tangente aponta para o alvo
+      for (let i = 0; i < 720; i++) {
+        const a = i / 720 * Math.PI * 2;
+        const px = atual.x + Math.cos(a) * atual.R, py = atual.y + Math.sin(a) * atual.R;
+        const vx = -Math.sin(a) * lado, vy = Math.cos(a) * lado;
+        const dx = alvo.x - px, dy = alvo.y - py, d = Math.hypot(dx, dy);
+        if ((dx * vx + dy * vy) / d > 0.995) { nave.ang = a; atualizar(0); soltar(); return true; }
+      }
+      return false;
+    }
+  };
+})();
+</script>
+</body>
+</html>
