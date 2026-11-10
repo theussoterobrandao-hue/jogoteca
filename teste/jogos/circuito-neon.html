@@ -294,6 +294,14 @@ canvas:active { cursor: grabbing; }
     if (i === fase - 2) return 1 - mistura;
     return 0;
   }
+  // atalho para a apresentação: teclas 1, 2 e 3 durante a corrida, ou o link com ?fase=2 / ?fase=3
+  const ICONES_FASE = ["🌃", "🏜️", "🎃"];
+  const FASE_INICIAL = Math.min(3, Math.max(1, Number(new URLSearchParams(location.search).get("fase")) || 1));
+  function pularParaFase(n) {
+    distancia = [0, DIST_DESERTO, DIST_HALLOWEEN][n - 1];
+    fase = n; mistura = 0; enfeites = [];
+    avisarFase(ICONES_FASE[n - 1] + " Fase " + n + ": " + TEMAS[n - 1].nome);
+  }
   let timerFase = null;
   function avisarFase(texto) {
     const el = document.getElementById("fase-aviso");
@@ -383,6 +391,7 @@ canvas:active { cursor: grabbing; }
 
   document.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
+    if (estado === "jogando" && (k === "1" || k === "2" || k === "3")) { pularParaFase(Number(k)); return; }
     if (k === "arrowleft" || k === "a") { mover(-1); e.preventDefault(); }
     else if (k === "arrowright" || k === "d") { mover(1); e.preventDefault(); }
     else if (k === "p" || k === "escape") { if (estado === "jogando") pausar(); else if (estado === "pausa") continuar(); }
@@ -457,6 +466,7 @@ canvas:active { cursor: grabbing; }
     objetos = []; proximoObjeto = 0.6; velAtual = VEL_INICIAL; ponteiro = 0; arrasto = null;
     fase = 1; mistura = 0; enfeites = []; proximoEnfeite = 0;
     document.getElementById("fase-aviso").hidden = true;
+    if (FASE_INICIAL > 1) pularParaFase(FASE_INICIAL);
     elMoedas.textContent = "0";
     estado = "jogando";
     mostrar(null);
