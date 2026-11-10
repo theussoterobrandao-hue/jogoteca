@@ -49,7 +49,6 @@ canvas { display: block; width: 100%; height: 100%; }
   font-variant-numeric: tabular-nums;
 }
 .placar small { color: var(--suave); font-weight: 700; margin-right: 6px; }
-.placar .un { margin: 0 0 0 4px; }
 @media (max-width: 440px) {
   .placar { gap: 4px; }
   .placar span { padding: 6px 7px; font-size: 13px; }
@@ -110,7 +109,6 @@ canvas { display: block; width: 100%; height: 100%; }
   <div class="placar" aria-live="off">
     <span><small>PONTOS</small><b id="pontos">0</b></span>
     <span><small>RECORDE</small><b id="recorde">0</b></span>
-    <span><b id="vel">0</b><small class="un">KM/H</small></span>
   </div>
   <button type="button" id="btn-pausa" aria-label="Pausar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg></button>
 </div>
@@ -177,7 +175,6 @@ canvas { display: block; width: 100%; height: 100%; }
   const ctx = canvas.getContext("2d");
   const elPontos = document.getElementById("pontos");
   const elRecorde = document.getElementById("recorde");
-  const elVel = document.getElementById("vel");
   const telas = {
     inicio: document.getElementById("tela-inicio"),
     pausa: document.getElementById("tela-pausa"),
@@ -202,6 +199,8 @@ canvas { display: block; width: 100%; height: 100%; }
   let faixasLinha = 0;            // anima as faixas da pista
   let tremor = 0;                 // tremida da tela ao bater
   let ultimoTempo = 0;
+  let velAtual = 0;               // velocidade deste quadro (com turbo)
+  let ponteiro = 0;               // posição do ponteiro (anda suave até velAtual)
 
   /* ---------- Tamanho do canvas (nítido em qualquer tela) ---------- */
   let L = 0, A = 0, dpr = 1;
@@ -287,7 +286,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function comecar() {
     faixaAlvo = 1; jogadorX = 1; velocidade = VEL_INICIAL;
     distancia = 0; bonus = 0; turbo = 0; tremor = 0;
-    objetos = []; proximoObjeto = 0.6;
+    objetos = []; proximoObjeto = 0.6; velAtual = VEL_INICIAL; ponteiro = 0;
     estado = "jogando";
     mostrar(null);
     ultimoTempo = performance.now();
@@ -320,6 +319,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function atualizar(dt) {
     velocidade = Math.min(VEL_MAX, velocidade + ACELERACAO * dt);
     const vel = velocidade * (turbo > 0 ? 1.6 : 1);
+    velAtual = vel;
     if (turbo > 0) turbo -= dt;
 
     distancia += vel * dt;
@@ -349,7 +349,6 @@ canvas { display: block; width: 100%; height: 100%; }
     objetos = objetos.filter((o) => o.z < 1.15 && !(o.pego && o.tipo === "energia"));
 
     elPontos.textContent = pontuacao();
-    elVel.textContent = Math.round(vel * KMH);
   }
 
   /* ---------- Desenho ---------- */
@@ -466,6 +465,80 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.restore();
   }
 
+  /* ---------- Velocímetro (estilo painel de carro) ----------
+     No celular fica grande no alto da tela, sobre o céu.
+     No computador fica no canto de baixo, à direita, fora da pista. */
+  const VEL_MOSTRADOR = 400;      // número final do mostrador (km/h)
+  const INICIO = Math.PI * 0.8;   // ângulo do 0 (embaixo, à esquerda)
+  const ARCO = Math.PI * 1.4;     // o mostrador ocupa 252 graus
+
+  function desenharVelocimetro() {
+    const celular = L < 700;
+    const r = celular ? Math.min(L * 0.23, 88) : Math.min(A * 0.17, 110);
+    const cx = celular ? L / 2 : L - r - 36;
+    const cy = celular ? 64 + r : A - r - 30;
+    const kmh = Math.min(VEL_MOSTRADOR, ponteiro * KMH);
+    const ang = (v) => INICIO + ARCO * (v / VEL_MOSTRADOR);
+    const cor = turbo > 0 ? "#3cdc7c" : "#22e0ff";
+
+    ctx.save();
+    // fundo do mostrador
+    ctx.fillStyle = "rgba(12, 13, 20, .82)";
+    ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.12)"; ctx.stroke();
+
+    // faixa colorida do arco: trilho apagado + parte acesa até a velocidade
+    ctx.lineCap = "round";
+    ctx.lineWidth = r * 0.09;
+    ctx.strokeStyle = "rgba(255,255,255,.08)";
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, INICIO, INICIO + ARCO); ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 46, 136, .35)";      // zona vermelha (300+ só no turbo)
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, ang(300), INICIO + ARCO); ctx.stroke();
+    brilho(cor, 16); ctx.strokeStyle = cor;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, INICIO, ang(kmh)); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // marcações e números
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (let v = 0; v <= VEL_MOSTRADOR; v += 20) {
+      const a = ang(v), grande = v % 100 === 0;
+      const r1 = r * (grande ? 0.64 : 0.7), r2 = r * 0.76;
+      ctx.strokeStyle = v >= 300 ? "#ff2e88" : "rgba(255,255,255,.75)";
+      ctx.lineWidth = grande ? 3 : 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+      ctx.stroke();
+      if (grande) {
+        ctx.fillStyle = v >= 300 ? "#ff2e88" : "#f4f4fb";
+        ctx.font = "800 " + Math.round(r * 0.15) + "px Nunito, system-ui, sans-serif";
+        ctx.fillText(String(v), cx + Math.cos(a) * r * 0.52, cy + Math.sin(a) * r * 0.52);
+      }
+    }
+
+    // ponteiro
+    const a = ang(kmh);
+    brilho("#ff2e88", 14);
+    ctx.strokeStyle = "#ff2e88"; ctx.lineWidth = Math.max(3, r * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(a) * r * 0.12, cy - Math.sin(a) * r * 0.12);
+    ctx.lineTo(cx + Math.cos(a) * r * 0.8, cy + Math.sin(a) * r * 0.8);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#f4f4fb";
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.08, 0, Math.PI * 2); ctx.fill();
+
+    // número digital e unidade embaixo do centro
+    brilho(cor, 12); ctx.fillStyle = "#ffffff";
+    ctx.font = "900 " + Math.round(r * 0.32) + "px Nunito, system-ui, sans-serif";
+    ctx.fillText(String(Math.round(kmh)), cx, cy + r * 0.56);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = turbo > 0 ? "#3cdc7c" : "#a9abc9";
+    ctx.font = "800 " + Math.round(r * 0.13) + "px Nunito, system-ui, sans-serif";
+    ctx.fillText(turbo > 0 ? "TURBO" : "km/h", cx, cy + r * 0.8);
+    ctx.restore();
+  }
+
   function desenhar() {
     if (!L) return;
     ctx.save();
@@ -495,6 +568,8 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.fillStyle = "rgba(60,220,124,.35)";
       ctx.fillRect(xJ - 18 * escalaJ, yNaTela(pJ) + 30 * escalaJ, 36 * escalaJ, 60 * escalaJ);
     }
+    ponteiro += (velAtual - ponteiro) * 0.12;
+    desenharVelocimetro();
     ctx.restore();
   }
 
