@@ -49,6 +49,12 @@ canvas { display: block; width: 100%; height: 100%; }
   font-variant-numeric: tabular-nums;
 }
 .placar small { color: var(--suave); font-weight: 700; margin-right: 6px; }
+.placar .un { margin: 0 0 0 4px; }
+@media (max-width: 440px) {
+  .placar { gap: 4px; }
+  .placar span { padding: 6px 7px; font-size: 13px; }
+  .placar small { font-size: 10px; margin-right: 4px; }
+}
 
 /* Telas de início / pausa / fim */
 .tela {
@@ -104,6 +110,7 @@ canvas { display: block; width: 100%; height: 100%; }
   <div class="placar" aria-live="off">
     <span><small>PONTOS</small><b id="pontos">0</b></span>
     <span><small>RECORDE</small><b id="recorde">0</b></span>
+    <span><b id="vel">0</b><small class="un">KM/H</small></span>
   </div>
   <button type="button" id="btn-pausa" aria-label="Pausar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg></button>
 </div>
@@ -157,9 +164,10 @@ canvas { display: block; width: 100%; height: 100%; }
 
   /* ---------- Configuração do jogo ---------- */
   const FAIXAS = 3;               // pista com 3 faixas: 0, 1 e 2
-  const VEL_INICIAL = 0.55;       // velocidade (pista por segundo)
-  const VEL_MAX = 1.6;
-  const ACELERACAO = 0.018;       // quanto acelera por segundo
+  const VEL_INICIAL = 0.3;        // velocidade no começo: devagar (pista por segundo)
+  const VEL_MAX = 1.7;            // velocidade máxima
+  const ACELERACAO = 0.024;       // quanto acelera por segundo (chega no máximo em ~1 minuto)
+  const KMH = 140;                // converte a velocidade do jogo em km/h para o velocímetro
   const CORES_CARRO = ["#ff2e88", "#ffc93c", "#a35cff", "#ff7a3c"];
   const P_JOGADOR = 0.78;           // onde o jogador fica na pista (0 = horizonte, 1 = fundo da tela)
   const Z_JOGADOR = Math.sqrt(P_JOGADOR);
@@ -169,6 +177,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const ctx = canvas.getContext("2d");
   const elPontos = document.getElementById("pontos");
   const elRecorde = document.getElementById("recorde");
+  const elVel = document.getElementById("vel");
   const telas = {
     inicio: document.getElementById("tela-inicio"),
     pausa: document.getElementById("tela-pausa"),
@@ -340,6 +349,7 @@ canvas { display: block; width: 100%; height: 100%; }
     objetos = objetos.filter((o) => o.z < 1.15 && !(o.pego && o.tipo === "energia"));
 
     elPontos.textContent = pontuacao();
+    elVel.textContent = Math.round(vel * KMH);
   }
 
   /* ---------- Desenho ---------- */
