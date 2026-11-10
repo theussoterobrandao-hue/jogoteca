@@ -109,7 +109,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 
 /* Avisos rápidos na tela (ruína descoberta, dica) */
 .aviso {
-  position: fixed; left: 50%; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); z-index: 2; transform: translateX(-50%);
+  position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); z-index: 2; transform: translateX(-50%);
   padding: 10px 18px; border-radius: 999px; background: var(--painel); font-weight: 900; font-size: 15px;
   white-space: nowrap; pointer-events: none;
 }
@@ -176,6 +176,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
     <div class="resumo">
       <span>🪐 <b id="fim-mundos">0</b> mundos</span>
       <span><i class="ruina-ico" aria-hidden="true"></i> <b id="fim-ruinas">0</b> ruínas</span>
+      <span>✨ <b id="fim-anos">0</b> anos-luz</span>
     </div>
     <p id="fim-recorde">Recorde: 0</p>
     <button class="btn" type="button" id="btn-denovo">↻ Jogar de novo</button>
@@ -226,6 +227,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
   let tempoVoo = 0, relogio = 0, ultimoTempo = 0;
   let rastro = [];
   let estrelas = [];
+  let velAgora = 0, percorrido = 0, ponteiro = 0;   // painel: velocidade atual, distância e ponteiro suave
 
   /* ---------- Tela ---------- */
   let L = 0, A = 0, W = 0, x0 = 0;
@@ -353,7 +355,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
   function esconderAviso() { elAviso.hidden = true; clearTimeout(timerAviso); }
 
   function comecar() {
-    planetas = []; criados = 0; mundos = 0; ruinas = 0; rastro = []; relogio = 0; tempoVoo = 0;
+    planetas = []; criados = 0; mundos = 0; ruinas = 0; rastro = []; relogio = 0; tempoVoo = 0; percorrido = 0; ponteiro = 0;
     const p0 = novoPlaneta(0, criados++);
     p0.x = p0.baseX = W / 2; p0.ruina = false; p0.visitado = true; p0.w = 1.4;
     planetas.push(p0);
@@ -381,6 +383,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
     document.getElementById("fim-pontos").textContent = pts;
     document.getElementById("fim-mundos").textContent = mundos;
     document.getElementById("fim-ruinas").textContent = ruinas;
+    document.getElementById("fim-anos").textContent = anosLuz();
     const r = document.getElementById("fim-recorde");
     r.textContent = bateuRecorde ? "Novo recorde!" : "Recorde: " + recorde;
     r.classList.toggle("novo-recorde", bateuRecorde);
@@ -405,6 +408,8 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
   /* ---------- Atualizar a cada quadro ---------- */
   function atualizar(dt) {
     relogio += dt;
+    velAgora = atual ? Math.abs(atual.w) * atual.R : VEL_NAVE;   // em órbita: mais devagar; voando: rápido
+    percorrido += velAgora * dt;
     for (const p of planetas) {
       if (p.mov) p.x = p.baseX + Math.sin(relogio * 0.7 + p.fase) * p.mov;
       p.giro += dt * 0.4;
@@ -537,6 +542,97 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
     ctx.restore();
   }
 
+  /* ---------- Painel de navegação (velocímetro galáctico) ----------
+     Ponteiro com a velocidade da nave em km/s, sobre uma galáxia em espiral
+     que gira devagar. Fica no canto de baixo, longe dos planetas que vêm pela frente. */
+  const VEL_PAINEL = 40;                                   // número final do mostrador (km/s)
+  const ZONA_DOBRA = 35;                                   // a partir daqui o arco fica dourado
+  const P_INICIO = Math.PI * 0.8, P_ARCO = Math.PI * 1.4;   // mostrador de 252 graus
+  const kms = (px) => px * 0.1;                            // pixels por segundo para km/s do jogo
+  function anosLuz() { return (percorrido / 1500).toFixed(1).replace(".", ","); }
+
+  function desenharPainel() {
+    const celular = L < 700;
+    const r = celular ? Math.min(L * 0.17, 64) : Math.min(A * 0.15, 96);
+    const cx = L - r - (celular ? 18 : 34), cy = A - r - (celular ? 24 : 32);
+    ponteiro += (kms(velAgora) - ponteiro) * 0.1;
+    const v = Math.min(VEL_PAINEL, ponteiro);
+    const ang = (k) => P_INICIO + P_ARCO * (k / VEL_PAINEL);
+    ctx.save();
+
+    // fundo: galáxia em espiral
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r + 8);
+    g.addColorStop(0, "#3a2a7a"); g.addColorStop(0.55, "#1a1745"); g.addColorStop(1, "#0b1026");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = "rgba(123, 132, 255, .45)"; ctx.stroke();
+    for (let braco = 0; braco < 2; braco++) {
+      for (let i = 0; i < 26; i++) {
+        const t = i / 26, a = relogio * 0.25 + braco * Math.PI + t * 4.2, d = r * 0.12 + t * r * 0.6;
+        ctx.fillStyle = "rgba(220, 215, 255, " + (0.5 - t * 0.35).toFixed(2) + ")";
+        ctx.beginPath(); ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.9, Math.max(0.8, r * 0.03 * (1 - t * 0.5)), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    // arco: trilho apagado, zona de dobra dourada e parte acesa até a velocidade
+    ctx.lineCap = "round"; ctx.lineWidth = r * 0.09;
+    ctx.strokeStyle = "rgba(255, 255, 255, .1)";
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, P_INICIO, P_INICIO + P_ARCO); ctx.stroke();
+    ctx.strokeStyle = "rgba(242, 196, 107, .4)";
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, ang(ZONA_DOBRA), P_INICIO + P_ARCO); ctx.stroke();
+    const ga = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
+    ga.addColorStop(0, "#6fc8d6"); ga.addColorStop(1, "#9a8fd1");
+    ctx.strokeStyle = ga; ctx.shadowColor = "#7b84ff"; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, P_INICIO, ang(v)); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // marcações (os números só cabem na tela grande)
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (let k = 0; k <= VEL_PAINEL; k += 5) {
+      const a = ang(k), grande = k % 10 === 0;
+      const r1 = r * (grande ? 0.64 : 0.7), r2 = r * 0.76;
+      ctx.strokeStyle = k >= ZONA_DOBRA ? "#f2c46b" : "rgba(255, 255, 255, .7)";
+      ctx.lineWidth = grande ? 2.5 : 1.2;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); ctx.stroke();
+      if (grande && !celular) {
+        ctx.fillStyle = k >= ZONA_DOBRA ? "#f2c46b" : "#eef0ff";
+        ctx.font = "800 " + Math.round(r * 0.14) + "px Nunito, system-ui, sans-serif";
+        ctx.fillText(String(k), cx + Math.cos(a) * r * 0.5, cy + Math.sin(a) * r * 0.5);
+      }
+    }
+
+    // ponteiro dourado com uma estrela no centro
+    const a = ang(v);
+    ctx.strokeStyle = "#f2c46b"; ctx.lineWidth = Math.max(2.5, r * 0.05);
+    ctx.shadowColor = "#f2c46b"; ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(a) * r * 0.1, cy - Math.sin(a) * r * 0.1);
+    ctx.lineTo(cx + Math.cos(a) * r * 0.78, cy + Math.sin(a) * r * 0.78);
+    ctx.stroke();
+    ctx.fillStyle = "#fff6d8";
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const rr = i % 2 ? r * 0.04 : r * 0.1, aa = i * Math.PI / 4 - Math.PI / 2;
+      ctx.lineTo(cx + Math.cos(aa) * rr, cy + Math.sin(aa) * rr);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // número digital e unidade
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 " + Math.round(r * 0.3) + "px Nunito, system-ui, sans-serif";
+    ctx.fillText(String(Math.round(v)), cx, cy + r * 0.5);
+    ctx.fillStyle = v >= ZONA_DOBRA ? "#f2c46b" : "#a7add6";
+    ctx.font = "800 " + Math.round(r * 0.14) + "px Nunito, system-ui, sans-serif";
+    ctx.fillText(v >= ZONA_DOBRA ? "DOBRA" : "km/s", cx, cy + r * 0.74);
+
+    // distância percorrida, acima do mostrador
+    ctx.font = "800 " + (celular ? 12 : 14) + "px Nunito, system-ui, sans-serif";
+    ctx.fillStyle = "#eef0ff"; ctx.textAlign = "right";
+    ctx.fillText("✨ " + anosLuz() + " anos-luz", cx + r + 6, cy - r - 20);
+    ctx.restore();
+  }
+
   function desenhar() {
     if (!L) return;
     desenharFundo();
@@ -546,6 +642,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
     for (const p of planetas) desenharPlaneta(p);
     desenharNave();
     ctx.restore();
+    desenharPainel();
   }
 
   /* ---------- Laço principal ---------- */
