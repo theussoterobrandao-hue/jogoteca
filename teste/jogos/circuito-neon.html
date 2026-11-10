@@ -11,7 +11,7 @@
 <style>
 /* =========================================================
    CIRCUITO NEON — jogo de corrida da Jogoteca
-   Desvie dos carros, pegue as energias e vá o mais longe possível.
+   Arraste para dirigir, pegue moedas e energias, desvie dos carros.
    Tudo é desenhado num <canvas> com JavaScript.
    ========================================================= */
 :root {
@@ -22,6 +22,7 @@
   --rosa: #ff2e88;
   --ciano: #22e0ff;
   --verde: #3cdc7c;
+  --ouro: #ffc93c;
   --sobre-verde: #062413;
   --f: "Nunito", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
@@ -29,12 +30,13 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fundo); color: var(--texto); font-family: var(--f); }
 body { touch-action: none; user-select: none; -webkit-user-select: none; }
-canvas { display: block; width: 100%; height: 100%; }
+canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+canvas:active { cursor: grabbing; }
 
-/* Barra de cima: voltar, pontos, recorde, pausa */
+/* Barra de cima: voltar, pontos, moedas, recorde, pausa */
 .hud {
   position: fixed; left: 0; right: 0; top: 0; z-index: 2;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   padding: calc(10px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));
   pointer-events: none;
 }
@@ -43,19 +45,25 @@ canvas { display: block; width: 100%; height: 100%; }
   border: 0; border-radius: 50%; background: var(--painel); color: var(--texto); text-decoration: none; cursor: pointer;
 }
 .hud svg { width: 20px; height: 20px; fill: currentColor; }
-.placar { flex: 1; display: flex; justify-content: center; gap: 8px; }
-.placar span {
-  padding: 6px 14px; border-radius: 999px; background: var(--painel); font-weight: 900; font-size: 15px;
-  font-variant-numeric: tabular-nums;
+.placar { flex: 1; display: flex; justify-content: center; gap: 6px; min-width: 0; }
+.placar > span {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 999px; background: var(--painel); font-weight: 900; font-size: 15px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.placar small { color: var(--suave); font-weight: 700; margin-right: 6px; }
+.placar small { color: var(--suave); font-weight: 700; }
+.moeda-ico {
+  width: 16px; height: 16px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 35%, #fff3b0, var(--ouro) 45%, #c98a00);
+  box-shadow: 0 0 8px rgba(255, 201, 60, .7), inset 0 0 0 2px rgba(150, 95, 0, .5);
+}
 @media (max-width: 440px) {
-  .placar { gap: 4px; }
-  .placar span { padding: 6px 7px; font-size: 13px; }
-  .placar small { font-size: 10px; margin-right: 4px; }
+  .placar > span { padding: 6px 8px; font-size: 13px; }
+  .placar small { font-size: 10px; }
+  .placar .some-celular { display: none; }
 }
 
-/* Telas de início / pausa / fim */
+/* Telas por cima do jogo (início, tutorial, pausa, fim) */
 .tela {
   position: fixed; inset: 0; z-index: 3; display: grid; place-items: center;
   padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
@@ -71,44 +79,82 @@ canvas { display: block; width: 100%; height: 100%; }
   color: #fff; text-shadow: 0 0 12px var(--rosa), 0 0 28px var(--rosa);
 }
 .caixa h1 em { font-style: normal; color: #fff; text-shadow: 0 0 12px var(--ciano), 0 0 28px var(--ciano); }
+.caixa h2 { margin: 0 0 6px; font-size: 24px; font-weight: 900; }
 .caixa p { margin: 0 0 16px; color: var(--suave); font-weight: 700; line-height: 1.45; }
 .caixa .grande { font-size: 44px; font-weight: 900; color: #fff; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
-.caixa ul { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 6px; color: var(--suave); font-weight: 700; font-size: 14px; text-align: left; }
-.caixa li b { color: var(--texto); }
+.resumo { display: flex; justify-content: center; gap: 10px; margin: 0 0 14px; }
+.resumo span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #1d1e2c; font-weight: 900; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
   min-height: 52px; border: 0; border-radius: 999px; cursor: pointer;
   background: linear-gradient(180deg, var(--verde), #22b85f); color: var(--sobre-verde);
-  font: 900 18px var(--f); box-shadow: 0 6px 24px rgba(60, 220, 124, .35);
+  font: 900 18px var(--f); box-shadow: 0 6px 24px rgba(60, 220, 124, .35); text-decoration: none;
 }
 .btn:active { transform: scale(.97); }
-.btn--cinza { margin-top: 10px; background: #282a3d; color: var(--texto); box-shadow: none; font-size: 15px; min-height: 44px; text-decoration: none; }
+.btn--cinza { margin-top: 10px; background: #282a3d; color: var(--texto); box-shadow: none; font-size: 15px; min-height: 44px; }
 .novo-recorde { color: var(--verde) !important; }
 
-/* Botões de toque (só aparecem em tela de toque) */
-.setas {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; display: none; justify-content: space-between;
-  padding: 0 max(14px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
-  pointer-events: none;
+/* Tutorial: um passo por vez, com uma animação curta */
+.palco-tut {
+  position: relative; height: 150px; margin: 4px 0 16px; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(#1a0730, #0c0d14);
 }
-.setas button {
-  pointer-events: auto; width: 74px; height: 74px; border-radius: 50%; border: 2px solid rgba(34, 224, 255, .6);
-  background: rgba(19, 20, 31, .55); color: var(--ciano); display: grid; place-items: center;
+.pista-tut {
+  position: absolute; left: 50%; bottom: 0; width: 210px; height: 150px; transform: translateX(-50%);
+  background: #11121c; clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
 }
-.setas svg { width: 34px; height: 34px; fill: currentColor; }
-@media (hover: none) and (pointer: coarse) { .setas { display: flex; } }
+.pista-tut::before, .pista-tut::after { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: repeating-linear-gradient(transparent 0 10px, rgba(255,255,255,.5) 10px 22px); }
+.pista-tut::before { left: 44%; } .pista-tut::after { right: 44%; }
+.carro-tut { position: absolute; left: 50%; bottom: 16px; width: 30px; height: 44px; margin-left: -15px; border-radius: 7px; background: var(--ciano); box-shadow: 0 0 16px var(--ciano); }
+.carro-tut.inimigo { background: var(--rosa); box-shadow: 0 0 16px var(--rosa); bottom: auto; top: 0; width: 20px; height: 28px; margin-left: -10px; }
+.moeda-tut { position: absolute; left: 50%; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff3b0, var(--ouro) 45%, #c98a00); box-shadow: 0 0 10px var(--ouro); }
+.energia-tut { position: absolute; left: 50%; top: 20px; width: 26px; height: 26px; margin-left: -13px; border-radius: 50%; background: var(--verde); box-shadow: 0 0 14px var(--verde); }
+.dedo {
+  position: absolute; left: 50%; bottom: 8px; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%;
+  background: rgba(255,255,255,.85); box-shadow: 0 0 0 6px rgba(255,255,255,.2);
+}
+/* passo 1: dedo e carro deslizam juntos para os lados */
+.tut-1 .carro-tut, .tut-1 .dedo { animation: lados 2.4s ease-in-out infinite; }
+@keyframes lados { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-62px); } 75% { transform: translateX(62px); } }
+/* passo 2: moedas descem até o carro */
+.tut-2 .moeda-tut { animation: descer 1.6s linear infinite; }
+.tut-2 .moeda-tut:nth-child(3) { animation-delay: .4s; } .tut-2 .moeda-tut:nth-child(4) { animation-delay: .8s; }
+@keyframes descer { from { top: -10px; opacity: 1; transform: scale(.6); } 85% { opacity: 1; } to { top: 100px; opacity: 0; transform: scale(1); } }
+/* passo 3: carro rosa desce e o jogador desvia */
+.tut-3 .carro-tut.inimigo { animation: inimigo 2.2s linear infinite; }
+.tut-3 .carro-tut:not(.inimigo) { animation: desvia 2.2s ease-in-out infinite; }
+@keyframes inimigo { from { top: -30px; transform: scale(.6); } to { top: 110px; transform: scale(1.1); } }
+@keyframes desvia { 0%, 30% { transform: translateX(0); } 50%, 100% { transform: translateX(58px); } }
+/* passo 4: energia pisca e o carro fica verde */
+.tut-4 .energia-tut { animation: pisca 1s ease-in-out infinite; }
+.tut-4 .carro-tut { background: var(--verde); box-shadow: 0 0 22px var(--verde); }
+@keyframes pisca { 50% { transform: scale(1.25); } }
+.pontos-tut { display: flex; justify-content: center; gap: 8px; margin: 0 0 14px; }
+.pontos-tut i { width: 8px; height: 8px; border-radius: 4px; background: #2e3047; transition: width .2s, background .2s; }
+.pontos-tut i.on { width: 22px; background: var(--ciano); }
+.pular { background: none; border: 0; color: var(--suave); font: 700 14px var(--f); margin-top: 10px; cursor: pointer; text-decoration: underline; }
+
+/* Dica na pista no começo da partida */
+.dica {
+  position: fixed; left: 50%; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); z-index: 2; transform: translateX(-50%);
+  padding: 10px 18px; border-radius: 999px; background: var(--painel); font-weight: 900; font-size: 15px;
+  white-space: nowrap; pointer-events: none;
+}
+.dica[hidden] { display: none; }
 :focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
 </style>
 </head>
 <body>
 
-<canvas id="tela" aria-label="Pista do jogo Circuito Neon"></canvas>
+<canvas id="tela" aria-label="Pista do jogo Circuito Neon. Arraste para os lados para dirigir."></canvas>
 
 <div class="hud">
   <a href="../#jogo-circuito-neon" aria-label="Voltar para a Jogoteca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg></a>
-  <div class="placar" aria-live="off">
+  <div class="placar">
     <span><small>PONTOS</small><b id="pontos">0</b></span>
-    <span><small>RECORDE</small><b id="recorde">0</b></span>
+    <span aria-label="Moedas"><i class="moeda-ico" aria-hidden="true"></i><b id="moedas">0</b></span>
+    <span><small>REC<span class="some-celular">ORDE</span></small><b id="recorde">0</b></span>
   </div>
   <button type="button" id="btn-pausa" aria-label="Pausar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg></button>
 </div>
@@ -117,15 +163,22 @@ canvas { display: block; width: 100%; height: 100%; }
 <section class="tela" id="tela-inicio">
   <div class="caixa">
     <h1>CIRCUITO <em>NEON</em></h1>
-    <p>Corrida noturna na pista de luz. Desvie dos carros e pegue as energias.</p>
-    <ul>
-      <li><b>Celular:</b> toque nas setas ou deslize para os lados</li>
-      <li><b>Computador:</b> setas ← → ou teclas A e D</li>
-      <li><b>Energia ⚡:</b> +50 pontos e turbo de 2 segundos</li>
-      <li><b>Pausa:</b> botão no canto ou tecla P</li>
-    </ul>
+    <p>Corrida noturna na pista de luz. Arraste para dirigir, pegue as moedas e desvie dos carros.</p>
     <button class="btn" type="button" id="btn-jogar">▶ Jogar</button>
+    <button class="btn btn--cinza" type="button" id="btn-tutorial">Como jogar</button>
     <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
+  </div>
+</section>
+
+<!-- Tutorial (aparece sozinho na primeira vez) -->
+<section class="tela" id="tela-tutorial" hidden aria-live="polite">
+  <div class="caixa">
+    <div class="palco-tut" id="palco-tut" aria-hidden="true"></div>
+    <h2 id="tut-titulo">Arraste para dirigir</h2>
+    <p id="tut-texto">Encoste o dedo em qualquer lugar da tela e arraste para os lados.</p>
+    <div class="pontos-tut" id="tut-pontos" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <button class="btn" type="button" id="btn-tut-proximo">Próximo</button>
+    <button class="pular" type="button" id="btn-tut-pular">Pular tutorial</button>
   </div>
 </section>
 
@@ -136,6 +189,7 @@ canvas { display: block; width: 100%; height: 100%; }
     <p>Respira. A pista te espera.</p>
     <button class="btn" type="button" id="btn-continuar">▶ Continuar</button>
     <button class="btn btn--cinza" type="button" id="btn-reiniciar">Começar de novo</button>
+    <button class="btn btn--cinza" type="button" id="btn-tutorial-pausa">Como jogar</button>
   </div>
 </section>
 
@@ -145,16 +199,14 @@ canvas { display: block; width: 100%; height: 100%; }
     <h1>BATEU!</h1>
     <p>Sua pontuação</p>
     <div class="grande" id="fim-pontos">0</div>
+    <div class="resumo"><span><i class="moeda-ico" aria-hidden="true"></i><b id="fim-moedas">0</b> moedas</span></div>
     <p id="fim-recorde">Recorde: 0</p>
     <button class="btn" type="button" id="btn-denovo">↻ Jogar de novo</button>
     <a class="btn btn--cinza" href="../#jogo-circuito-neon">Voltar para a Jogoteca</a>
   </div>
 </section>
 
-<div class="setas">
-  <button type="button" id="seta-esq" aria-label="Ir para a esquerda"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg></button>
-  <button type="button" id="seta-dir" aria-label="Ir para a direita"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 18.6 10 20l8-8-8-8-1.4 1.4 6.6 6.6z"/></svg></button>
-</div>
+<div class="dica" id="dica" hidden>👆 Arraste para os lados</div>
 
 <script>
 (function () {
@@ -166,41 +218,49 @@ canvas { display: block; width: 100%; height: 100%; }
   const VEL_MAX = 1.7;            // velocidade máxima
   const ACELERACAO = 0.024;       // quanto acelera por segundo (chega no máximo em ~1 minuto)
   const KMH = 140;                // converte a velocidade do jogo em km/h para o velocímetro
+  const PONTOS_MOEDA = 10;        // cada moeda vale 10 pontos
   const CORES_CARRO = ["#ff2e88", "#ffc93c", "#a35cff", "#ff7a3c"];
-  const P_JOGADOR = 0.78;           // onde o jogador fica na pista (0 = horizonte, 1 = fundo da tela)
+  const P_JOGADOR = 0.78;         // onde o jogador fica na pista (0 = horizonte, 1 = fundo da tela)
   const Z_JOGADOR = Math.sqrt(P_JOGADOR);
 
   /* ---------- Elementos da página ---------- */
   const canvas = document.getElementById("tela");
   const ctx = canvas.getContext("2d");
   const elPontos = document.getElementById("pontos");
+  const elMoedas = document.getElementById("moedas");
   const elRecorde = document.getElementById("recorde");
+  const elDica = document.getElementById("dica");
   const telas = {
     inicio: document.getElementById("tela-inicio"),
+    tutorial: document.getElementById("tela-tutorial"),
     pausa: document.getElementById("tela-pausa"),
     fim: document.getElementById("tela-fim")
   };
 
-  /* ---------- Recorde salvo no navegador ---------- */
-  let recorde = 0;
-  try { recorde = Number(localStorage.getItem("circuito-neon-recorde")) || 0; } catch (e) {}
+  /* ---------- Coisas salvas no navegador ---------- */
+  function ler(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
+  function gravar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) {} }
+  let recorde = Number(ler("circuito-neon-recorde")) || 0;
   elRecorde.textContent = recorde;
 
   /* ---------- Estado da partida ---------- */
-  let estado = "inicio";          // inicio | jogando | pausa | fim
-  let faixaAlvo = 1;              // faixa para onde o jogador está indo
+  let estado = "inicio";          // inicio | tutorial | jogando | pausa | fim
+  let faixaAlvo = 1;              // para onde o jogador quer ir (pode ser "entre" faixas)
   let jogadorX = 1;               // posição atual (anda suavemente até faixaAlvo)
   let velocidade = VEL_INICIAL;
   let distancia = 0;              // vira a pontuação
   let bonus = 0;                  // pontos das energias
+  let moedas = 0;                 // moedas pegas nesta partida
   let turbo = 0;                  // segundos de turbo restantes
-  let objetos = [];               // carros e energias na pista
+  let objetos = [];               // carros, moedas e energias na pista
   let proximoObjeto = 0;          // tempo até criar o próximo objeto
   let faixasLinha = 0;            // anima as faixas da pista
   let tremor = 0;                 // tremida da tela ao bater
+  let relogio = 0;                // tempo total (gira as moedas)
   let ultimoTempo = 0;
   let velAtual = 0;               // velocidade deste quadro (com turbo)
-  let ponteiro = 0;               // posição do ponteiro (anda suave até velAtual)
+  let ponteiro = 0;               // posição do ponteiro do velocímetro
+  let brilhoMoeda = 0;            // flash rápido ao pegar moeda
 
   /* ---------- Tamanho do canvas (nítido em qualquer tela) ---------- */
   let L = 0, A = 0, dpr = 1;
@@ -214,102 +274,174 @@ canvas { display: block; width: 100%; height: 100%; }
   window.addEventListener("resize", redimensionar);
 
   /* ---------- Perspectiva da pista ----------
-     p = 0 é o horizonte (longe) e p = 1 é a frente da tela (perto).
-     A pista fica mais larga conforme chega perto.                  */
+     p = 0 é o horizonte (longe) e p = 1 é a frente da tela (perto). */
   const horizonte = () => A * 0.36;
-  const larguraPista = (p) => {
-    const perto = Math.min(L * 0.92, 560);
-    return perto * (0.06 + 0.94 * p);
-  };
+  const larguraPista = (p) => Math.min(L * 0.92, 560) * (0.06 + 0.94 * p);
   const yNaTela = (p) => horizonte() + (A - horizonte()) * p;
   function xDaFaixa(faixa, p) {
     const w = larguraPista(p);
     return L / 2 - w / 2 + w * ((faixa + 0.5) / FAIXAS);
   }
+  const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
+  const sortear = (lista) => lista[Math.floor(Math.random() * lista.length)];
 
-  /* ---------- Criar carros e energias ---------- */
+  /* ---------- Criar carros, moedas e energias ---------- */
   function criarObjeto() {
     const faixa = Math.floor(Math.random() * FAIXAS);
-    const ehEnergia = Math.random() < 0.22;
-    objetos.push({
-      tipo: ehEnergia ? "energia" : "carro",
-      faixa,
-      z: 0,                                  // 0 = horizonte, 1 = chegou no jogador
-      cor: CORES_CARRO[Math.floor(Math.random() * CORES_CARRO.length)]
-    });
+    const sorte = Math.random();
+
+    if (sorte < 0.32) {                       // fileira de 3 a 5 moedas
+      const qtd = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < qtd; i++) objetos.push({ tipo: "moeda", faixa, z: -i * 0.07 });
+      return;
+    }
+    if (sorte < 0.42) { objetos.push({ tipo: "energia", faixa, z: 0 }); return; }
+
+    objetos.push({ tipo: "carro", faixa, z: 0, cor: sortear(CORES_CARRO) });
     // às vezes vem um segundo carro em outra faixa (nunca bloqueia as 3)
-    if (!ehEnergia && Math.random() < 0.3 + velocidade * 0.15) {
-      let outra = (faixa + 1 + Math.floor(Math.random() * 2)) % FAIXAS;
-      objetos.push({ tipo: "carro", faixa: outra, z: -0.02, cor: CORES_CARRO[Math.floor(Math.random() * CORES_CARRO.length)] });
+    if (Math.random() < 0.25 + velocidade * 0.15) {
+      const outra = (faixa + 1 + Math.floor(Math.random() * 2)) % FAIXAS;
+      objetos.push({ tipo: "carro", faixa: outra, z: -0.02, cor: sortear(CORES_CARRO) });
+    } else if (Math.random() < 0.5) {         // ou moedas numa faixa livre ao lado
+      const livre = (faixa + 1 + Math.floor(Math.random() * 2)) % FAIXAS;
+      for (let i = 0; i < 3; i++) objetos.push({ tipo: "moeda", faixa: livre, z: -i * 0.07 });
     }
   }
 
-  /* ---------- Controles ---------- */
+  /* ---------- Controles ----------
+     Arrastar (dedo ou mouse) em QUALQUER lugar da tela move o carro junto.
+     Um toque rápido sem arrastar muda uma faixa para o lado tocado.
+     Teclado: setas ← → ou A e D.                                         */
   function mover(direcao) {
     if (estado !== "jogando") return;
-    faixaAlvo = Math.max(0, Math.min(FAIXAS - 1, faixaAlvo + direcao));
+    faixaAlvo = limitar(Math.round(faixaAlvo) + direcao, 0, FAIXAS - 1);
+    esconderDica();
   }
+
+  let arrasto = null;   // { id, x0, alvo0, mexeu }
+  function larguraFaixaPx() { return larguraPista(P_JOGADOR) / FAIXAS; }
+
+  window.addEventListener("pointerdown", (e) => {
+    if (estado !== "jogando" || e.target.closest("button, a")) return;
+    arrasto = { id: e.pointerId, x0: e.clientX, alvo0: faixaAlvo, mexeu: false };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!arrasto || e.pointerId !== arrasto.id || estado !== "jogando") return;
+    const dx = e.clientX - arrasto.x0;
+    if (Math.abs(dx) > 6) arrasto.mexeu = true;
+    // 1,3 = um pouco mais sensível que o dedo, para não precisar arrastar muito
+    faixaAlvo = limitar(arrasto.alvo0 + (dx / larguraFaixaPx()) * 1.3, 0, FAIXAS - 1);
+    if (arrasto.mexeu) esconderDica();
+  });
+  function soltar(e) {
+    if (!arrasto || e.pointerId !== arrasto.id) return;
+    if (!arrasto.mexeu && estado === "jogando") mover(e.clientX < L / 2 ? -1 : 1);
+    arrasto = null;
+  }
+  window.addEventListener("pointerup", soltar);
+  window.addEventListener("pointercancel", () => { arrasto = null; });
 
   document.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
     if (k === "arrowleft" || k === "a") { mover(-1); e.preventDefault(); }
     else if (k === "arrowright" || k === "d") { mover(1); e.preventDefault(); }
-    else if (k === "p" || k === "escape") { estado === "jogando" ? pausar() : estado === "pausa" && continuar(); }
-    else if ((k === "enter" || k === " ") && estado !== "jogando") { e.preventDefault(); estado === "pausa" ? continuar() : comecar(); }
+    else if (k === "p" || k === "escape") { if (estado === "jogando") pausar(); else if (estado === "pausa") continuar(); }
+    else if ((k === "enter" || k === " ") && (estado === "inicio" || estado === "fim" || estado === "pausa")) {
+      e.preventDefault();
+      if (estado === "pausa") continuar(); else iniciarOuTutorial();
+    }
   });
 
-  // deslizar o dedo na pista
-  let toqueX = null;
-  canvas.addEventListener("pointerdown", (e) => { toqueX = e.clientX; });
-  canvas.addEventListener("pointerup", (e) => {
-    if (toqueX === null) return;
-    const dx = e.clientX - toqueX;
-    if (Math.abs(dx) > 30) mover(dx > 0 ? 1 : -1);
-    else mover(e.clientX < L / 2 ? -1 : 1);       // toque simples: lado da tela
-    toqueX = null;
-  });
-  document.getElementById("seta-esq").addEventListener("pointerdown", (e) => { e.preventDefault(); mover(-1); });
-  document.getElementById("seta-dir").addEventListener("pointerdown", (e) => { e.preventDefault(); mover(1); });
-
-  document.getElementById("btn-jogar").addEventListener("click", comecar);
+  function iniciarOuTutorial() { if (!ler("circuito-neon-tutorial")) abrirTutorial(); else comecar(); }
+  document.getElementById("btn-jogar").addEventListener("click", iniciarOuTutorial);
+  document.getElementById("btn-tutorial").addEventListener("click", abrirTutorial);
+  document.getElementById("btn-tutorial-pausa").addEventListener("click", abrirTutorial);
   document.getElementById("btn-denovo").addEventListener("click", comecar);
   document.getElementById("btn-reiniciar").addEventListener("click", comecar);
   document.getElementById("btn-continuar").addEventListener("click", continuar);
-  document.getElementById("btn-pausa").addEventListener("click", () => (estado === "jogando" ? pausar() : estado === "pausa" && continuar()));
+  document.getElementById("btn-pausa").addEventListener("click", () => { if (estado === "jogando") pausar(); else if (estado === "pausa") continuar(); });
   document.addEventListener("visibilitychange", () => { if (document.hidden && estado === "jogando") pausar(); });
+
+  /* ---------- Tutorial ---------- */
+  const PASSOS = [
+    { titulo: "Arraste para dirigir",
+      texto: "Encoste o dedo em qualquer lugar da tela e arraste para os lados: o carro vai junto. No computador, arraste com o mouse ou use as setas ← →.",
+      cena: '<div class="pista-tut"></div><div class="carro-tut"></div><div class="dedo"></div>' },
+    { titulo: "Pegue as moedas",
+      texto: "Cada moeda dourada vale +10 pontos. Elas vêm em fileiras: fique na faixa delas para pegar todas.",
+      cena: '<div class="pista-tut"></div><div class="moeda-tut"></div><div class="moeda-tut"></div><div class="moeda-tut"></div><div class="carro-tut"></div>' },
+    { titulo: "Desvie dos carros",
+      texto: "Se encostar em outro carro, a corrida acaba. A pista começa devagar e fica cada vez mais rápida.",
+      cena: '<div class="pista-tut"></div><div class="carro-tut inimigo"></div><div class="carro-tut"></div>' },
+    { titulo: "Energia = turbo",
+      texto: "A bolinha verde dá +50 pontos e 2 segundos de turbo: seu carro fica verde e atravessa os outros sem bater.",
+      cena: '<div class="pista-tut"></div><div class="energia-tut"></div><div class="carro-tut"></div>' }
+  ];
+  let passo = 0, voltarPara = "inicio";
+
+  function mostrarPasso() {
+    const p = PASSOS[passo];
+    const palco = document.getElementById("palco-tut");
+    palco.className = "palco-tut tut-" + (passo + 1);
+    palco.innerHTML = p.cena;
+    document.getElementById("tut-titulo").textContent = p.titulo;
+    document.getElementById("tut-texto").textContent = p.texto;
+    document.querySelectorAll("#tut-pontos i").forEach((el, i) => el.classList.toggle("on", i === passo));
+    document.getElementById("btn-tut-proximo").textContent = passo === PASSOS.length - 1 ? "▶ Bora correr!" : "Próximo";
+  }
+  function abrirTutorial() {
+    voltarPara = estado === "pausa" ? "pausa" : "jogar";
+    estado = "tutorial"; passo = 0;
+    mostrarPasso(); mostrar("tutorial");
+  }
+  function fecharTutorial() {
+    gravar("circuito-neon-tutorial", "visto");
+    if (voltarPara === "pausa") { estado = "pausa"; mostrar("pausa"); }
+    else comecar();
+  }
+  document.getElementById("btn-tut-proximo").addEventListener("click", () => {
+    if (passo < PASSOS.length - 1) { passo++; mostrarPasso(); } else fecharTutorial();
+  });
+  document.getElementById("btn-tut-pular").addEventListener("click", fecharTutorial);
 
   /* ---------- Fluxo da partida ---------- */
   function mostrar(qual) {
     Object.entries(telas).forEach(([nome, el]) => { el.hidden = nome !== qual; });
   }
+  let timerDica = null;
+  function esconderDica() { elDica.hidden = true; clearTimeout(timerDica); }
 
   function comecar() {
     faixaAlvo = 1; jogadorX = 1; velocidade = VEL_INICIAL;
-    distancia = 0; bonus = 0; turbo = 0; tremor = 0;
-    objetos = []; proximoObjeto = 0.6; velAtual = VEL_INICIAL; ponteiro = 0;
+    distancia = 0; bonus = 0; moedas = 0; turbo = 0; tremor = 0;
+    objetos = []; proximoObjeto = 0.6; velAtual = VEL_INICIAL; ponteiro = 0; arrasto = null;
+    elMoedas.textContent = "0";
     estado = "jogando";
     mostrar(null);
+    elDica.hidden = false;
+    clearTimeout(timerDica); timerDica = setTimeout(esconderDica, 4000);
     ultimoTempo = performance.now();
     requestAnimationFrame(quadro);
   }
-  function pausar() { estado = "pausa"; mostrar("pausa"); }
+  function pausar() { estado = "pausa"; arrasto = null; mostrar("pausa"); }
   function continuar() { estado = "jogando"; mostrar(null); ultimoTempo = performance.now(); requestAnimationFrame(quadro); }
 
-  function pontuacao() { return Math.floor(distancia * 10) + bonus; }
+  function pontuacao() { return Math.floor(distancia * 10) + bonus + moedas * PONTOS_MOEDA; }
 
   function fimDeJogo() {
     estado = "fim";
-    tremor = 0.4;
+    tremor = 0.4; arrasto = null; esconderDica();
     const pts = pontuacao();
     const bateuRecorde = pts > recorde;
     if (bateuRecorde) {
       recorde = pts;
-      try { localStorage.setItem("circuito-neon-recorde", String(recorde)); } catch (e) {}
+      gravar("circuito-neon-recorde", String(recorde));
       elRecorde.textContent = recorde;
     }
     document.getElementById("fim-pontos").textContent = pts;
+    document.getElementById("fim-moedas").textContent = moedas;
     const r = document.getElementById("fim-recorde");
-    r.textContent = bateuRecorde ? "Novo recorde!" : `Recorde: ${recorde}`;
+    r.textContent = bateuRecorde ? "Novo recorde!" : "Recorde: " + recorde;
     r.classList.toggle("novo-recorde", bateuRecorde);
     desenhar();
     setTimeout(() => mostrar("fim"), 450);
@@ -317,36 +449,38 @@ canvas { display: block; width: 100%; height: 100%; }
 
   /* ---------- Atualizar o jogo a cada quadro ---------- */
   function atualizar(dt) {
+    relogio += dt;
     velocidade = Math.min(VEL_MAX, velocidade + ACELERACAO * dt);
     const vel = velocidade * (turbo > 0 ? 1.6 : 1);
     velAtual = vel;
     if (turbo > 0) turbo -= dt;
+    if (brilhoMoeda > 0) brilhoMoeda -= dt;
 
     distancia += vel * dt;
     faixasLinha = (faixasLinha + vel * dt * 4) % 1;
 
-    // o carro desliza até a faixa escolhida
-    jogadorX += (faixaAlvo - jogadorX) * Math.min(1, dt * 14);
+    // o carro desliza até onde o jogador mandou
+    jogadorX += (faixaAlvo - jogadorX) * Math.min(1, dt * 16);
 
-    // criar novos objetos
     proximoObjeto -= dt;
     if (proximoObjeto <= 0) {
       criarObjeto();
       proximoObjeto = Math.max(0.38, 1.1 - velocidade * 0.45) * (0.8 + Math.random() * 0.5);
     }
 
-    // mover objetos e checar colisão
+    // mover objetos e checar se encostou no jogador
     for (const o of objetos) {
       o.z += vel * dt;
       const perto = Math.abs(o.z - Z_JOGADOR) < 0.045;
-      const mesmaFaixa = Math.abs(o.faixa - jogadorX) < 0.55;
+      const mesmaFaixa = Math.abs(o.faixa - jogadorX) < (o.tipo === "carro" ? 0.55 : 0.6);
       if (perto && mesmaFaixa && !o.pego) {
-        if (o.tipo === "energia") { o.pego = true; bonus += 50; turbo = 2; }
+        if (o.tipo === "moeda") { o.pego = true; moedas++; brilhoMoeda = 0.15; elMoedas.textContent = moedas; }
+        else if (o.tipo === "energia") { o.pego = true; bonus += 50; turbo = 2; }
         else if (turbo <= 0) { fimDeJogo(); return; }
         else { o.pego = true; bonus += 20; }   // no turbo, o jogador atravessa
       }
     }
-    objetos = objetos.filter((o) => o.z < 1.15 && !(o.pego && o.tipo === "energia"));
+    objetos = objetos.filter((o) => o.z < 1.15 && !(o.pego && o.tipo !== "carro"));
 
     elPontos.textContent = pontuacao();
   }
@@ -383,32 +517,26 @@ canvas { display: block; width: 100%; height: 100%; }
     const g = ctx.createLinearGradient(0, horizonte(), 0, A);
     g.addColorStop(0, "#1a0730"); g.addColorStop(1, "#0c0d14");
     ctx.fillStyle = g; ctx.fillRect(0, horizonte(), L, A - horizonte());
-
-    // grade neon lateral
     ctx.strokeStyle = "rgba(163, 92, 255, .35)"; ctx.lineWidth = 1;
     for (let i = 0; i < 14; i++) {
-      const p = ((i / 14) + faixasLinha / 14) ** 2;
-      const y = yNaTela(p);
+      const y = yNaTela(((i / 14) + faixasLinha / 14) ** 2);
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(L, y); ctx.stroke();
     }
   }
 
   function desenharPista() {
-    // asfalto
     const topoW = larguraPista(0), baseW = larguraPista(1);
     ctx.fillStyle = "#11121c";
     ctx.beginPath();
     ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 + topoW / 2, horizonte());
     ctx.lineTo(L / 2 + baseW / 2, A); ctx.lineTo(L / 2 - baseW / 2, A); ctx.closePath(); ctx.fill();
 
-    // bordas brilhando
     ctx.lineWidth = 4; brilho("#22e0ff", 18); ctx.strokeStyle = "#22e0ff";
     ctx.beginPath(); ctx.moveTo(L / 2 - topoW / 2, horizonte()); ctx.lineTo(L / 2 - baseW / 2, A); ctx.stroke();
     ctx.strokeStyle = "#ff2e88"; brilho("#ff2e88", 18);
     ctx.beginPath(); ctx.moveTo(L / 2 + topoW / 2, horizonte()); ctx.lineTo(L / 2 + baseW / 2, A); ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // faixas tracejadas que andam
     ctx.fillStyle = "rgba(255,255,255,.55)";
     for (let d = 1; d < FAIXAS; d++) {
       for (let i = 0; i < 10; i++) {
@@ -427,21 +555,15 @@ canvas { display: block; width: 100%; height: 100%; }
     const w = 64 * escala, h = 96 * escala;
     ctx.save();
     ctx.translate(x, y);
-    // sombra
     ctx.fillStyle = "rgba(0,0,0,.45)";
     ctx.beginPath(); ctx.ellipse(0, h * 0.02, w * 0.6, h * 0.12, 0, 0, Math.PI * 2); ctx.fill();
-    // carroceria
     brilho(cor, 22 * escala + 6);
     ctx.fillStyle = cor;
-    ctx.beginPath();
-    ctx.roundRect(-w / 2, -h, w, h, 12 * escala);
-    ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-w / 2, -h, w, h, 12 * escala); ctx.fill();
     ctx.shadowBlur = 0;
-    // vidro
     ctx.fillStyle = "rgba(10,12,30,.85)";
     ctx.beginPath(); ctx.roundRect(-w * 0.36, -h * (ehJogador ? 0.78 : 0.42), w * 0.72, h * 0.24, 6 * escala); ctx.fill();
-    // faróis (jogador) ou lanternas (outros carros)
-    ctx.fillStyle = ehJogador ? "#e8faff" : "#ffffff";
+    ctx.fillStyle = "#ffffff";
     brilho(ehJogador ? "#22e0ff" : "#ff2e88", 14);
     const fy = ehJogador ? -h + 4 * escala : -10 * escala;
     ctx.fillRect(-w * 0.42, fy, w * 0.22, 5 * escala);
@@ -465,12 +587,34 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.restore();
   }
 
+  // moeda dourada que gira (fica "fina" e "gorda" como uma moeda de verdade girando)
+  function desenharMoeda(x, y, escala, fase) {
+    const r = 30 * escala;
+    const giro = Math.abs(Math.cos(relogio * 5 + fase));
+    ctx.save();
+    ctx.translate(x, y - r * 1.3);
+    ctx.scale(0.3 + 0.7 * giro, 1);
+    brilho("#ffc93c", 18);
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+    g.addColorStop(0, "#fff3b0"); g.addColorStop(0.5, "#ffc93c"); g.addColorStop(1, "#c98a00");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(150, 95, 0, .7)"; ctx.lineWidth = Math.max(1, r * 0.14);
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "rgba(150, 95, 0, .85)";
+    ctx.font = "900 " + Math.round(r * 0.95) + "px Nunito, system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("J", 0, r * 0.05);
+    ctx.restore();
+  }
+
   /* ---------- Velocímetro (estilo painel de carro) ----------
      No celular fica grande no alto da tela, sobre o céu.
      No computador fica no canto de baixo, à direita, fora da pista. */
-  const VEL_MOSTRADOR = 400;      // número final do mostrador (km/h)
-  const INICIO = Math.PI * 0.8;   // ângulo do 0 (embaixo, à esquerda)
-  const ARCO = Math.PI * 1.4;     // o mostrador ocupa 252 graus
+  const VEL_MOSTRADOR = 400;
+  const INICIO = Math.PI * 0.8;
+  const ARCO = Math.PI * 1.4;
 
   function desenharVelocimetro() {
     const celular = L < 700;
@@ -482,23 +626,20 @@ canvas { display: block; width: 100%; height: 100%; }
     const cor = turbo > 0 ? "#3cdc7c" : "#22e0ff";
 
     ctx.save();
-    // fundo do mostrador
     ctx.fillStyle = "rgba(12, 13, 20, .82)";
     ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.12)"; ctx.stroke();
 
-    // faixa colorida do arco: trilho apagado + parte acesa até a velocidade
     ctx.lineCap = "round";
     ctx.lineWidth = r * 0.09;
     ctx.strokeStyle = "rgba(255,255,255,.08)";
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, INICIO, INICIO + ARCO); ctx.stroke();
-    ctx.strokeStyle = "rgba(255, 46, 136, .35)";      // zona vermelha (300+ só no turbo)
+    ctx.strokeStyle = "rgba(255, 46, 136, .35)";
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, ang(300), INICIO + ARCO); ctx.stroke();
     brilho(cor, 16); ctx.strokeStyle = cor;
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.86, INICIO, ang(kmh)); ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // marcações e números
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (let v = 0; v <= VEL_MOSTRADOR; v += 20) {
       const a = ang(v), grande = v % 100 === 0;
@@ -516,7 +657,6 @@ canvas { display: block; width: 100%; height: 100%; }
       }
     }
 
-    // ponteiro
     const a = ang(kmh);
     brilho("#ff2e88", 14);
     ctx.strokeStyle = "#ff2e88"; ctx.lineWidth = Math.max(3, r * 0.05);
@@ -528,7 +668,6 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillStyle = "#f4f4fb";
     ctx.beginPath(); ctx.arc(cx, cy, r * 0.08, 0, Math.PI * 2); ctx.fill();
 
-    // número digital e unidade embaixo do centro
     brilho(cor, 12); ctx.fillStyle = "#ffffff";
     ctx.font = "900 " + Math.round(r * 0.32) + "px Nunito, system-ui, sans-serif";
     ctx.fillText(String(Math.round(kmh)), cx, cy + r * 0.56);
@@ -554,6 +693,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const escala = Math.max(0.05, larguraPista(Math.min(1, p)) / 560);
       const x = xDaFaixa(o.faixa, Math.min(1, p)), y = yNaTela(p);
       if (o.tipo === "carro") desenharCarro(x, y, escala, o.cor, false);
+      else if (o.tipo === "moeda") desenharMoeda(x, y, escala, o.z * 9);
       else desenharEnergia(x, y, escala);
     }
 
@@ -562,12 +702,16 @@ canvas { display: block; width: 100%; height: 100%; }
     const escalaJ = larguraPista(pJ) / 560;
     const xJ = L / 2 - larguraPista(pJ) / 2 + larguraPista(pJ) * ((jogadorX + 0.5) / FAIXAS);
     desenharCarro(xJ, yNaTela(pJ) + 30 * escalaJ, escalaJ * 1.05, turbo > 0 ? "#3cdc7c" : "#22e0ff", true);
-
-    // rastro do turbo
     if (turbo > 0 && estado === "jogando") {
       ctx.fillStyle = "rgba(60,220,124,.35)";
       ctx.fillRect(xJ - 18 * escalaJ, yNaTela(pJ) + 30 * escalaJ, 36 * escalaJ, 60 * escalaJ);
     }
+    // flash dourado ao pegar moeda
+    if (brilhoMoeda > 0) {
+      ctx.fillStyle = "rgba(255, 201, 60, " + (brilhoMoeda * 2.4).toFixed(2) + ")";
+      ctx.beginPath(); ctx.arc(xJ, yNaTela(pJ) - 20 * escalaJ, 60 * escalaJ, 0, Math.PI * 2); ctx.fill();
+    }
+
     ponteiro += (velAtual - ponteiro) * 0.12;
     desenharVelocimetro();
     ctx.restore();
@@ -589,7 +733,12 @@ canvas { display: block; width: 100%; height: 100%; }
   }
   redimensionar();
   mostrar("inicio");
-  window.__jogo = { get estado() { return estado; }, get pontos() { return pontuacao(); }, get faixa() { return faixaAlvo; } };  // usado nos testes
+  window.__jogo = {   // usado nos testes automáticos
+    get estado() { return estado; }, get pontos() { return pontuacao(); }, get moedas() { return moedas; },
+    get faixa() { return faixaAlvo; }, get x() { return jogadorX; }, get passo() { return passo; },
+    limpar() { objetos = []; proximoObjeto = 99; },
+    colocarMoeda(f) { objetos.push({ tipo: "moeda", faixa: f, z: Z_JOGADOR - 0.15 }); }
+  };
 })();
 </script>
 </body>
